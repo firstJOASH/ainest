@@ -235,7 +235,7 @@ export const UploadDatasetModal = ({
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="price">Price (ETH)</Label>
+            <Label htmlFor="price">Price (STRK)</Label>
             <Input
               id="price"
               type="number"

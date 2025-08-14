@@ -70,7 +70,7 @@ export const Landing = () => {
       number: "02",
       title: "Browse & Purchase",
       description:
-        "Explore high-quality datasets across multiple AI domains and purchase with ETH.",
+        "Explore high-quality datasets across multiple AI domains and purchase with STRK.",
     },
     {
       number: "03",
