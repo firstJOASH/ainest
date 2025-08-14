@@ -71,7 +71,7 @@ export const CategorySidebar = () => {
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Volume</span>
-              <span className="font-medium text-foreground">847 ETH</span>
+              <span className="font-medium text-foreground">847 STRK</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Active Users</span>

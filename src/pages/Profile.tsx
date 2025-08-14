@@ -22,7 +22,7 @@ export const Profile = () => {
       name: "Custom NLP Dataset",
       owner: address || "0x0",
       ipfs_hash: "QmYjtig7VJQ6XsnUjqqJvj7QaMcCAwtrgNdahSiFofrE7o",
-      price: BigInt("150000000000000000"), // 0.15 ETH
+      price: BigInt("150000000000000000"), // 0.15 STRK
       category: "Natural Language Processing",
     },
   ];
@@ -137,7 +137,7 @@ export const Profile = () => {
                   <span className="text-sm text-muted-foreground">
                     Total Earned:
                   </span>
-                  <Badge variant="secondary">0.15 ETH</Badge>
+                  <Badge variant="secondary">0.15 STRK</Badge>
                 </div>
               </div>
             </div>

@@ -29,7 +29,7 @@ export const DatasetPreviewModal = ({
   };
 
   const formatPrice = (price: bigint) => {
-    return `${Number(price) / 1e18} ETH`;
+    return `${Number(price) / 1e18} STRK`;
   };
 
   return (
