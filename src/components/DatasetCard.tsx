@@ -29,8 +29,8 @@ export const DatasetCard = ({
   };
 
   const formatPrice = (price: bigint) => {
-    // Convert wei to ETH (simplified)
-    return `${Number(price) / 1e18} ETH`;
+    // Convert wei to STRK (simplified)
+    return `${Number(price) / 1e18} STRK`;
   };
 
   const handleMouseEnter = () => {

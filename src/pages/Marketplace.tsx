@@ -31,7 +31,7 @@ export const Marketplace = () => {
       name: 'ImageNet Classification Dataset',
       owner: '0x1234567890abcdef1234567890abcdef12345678',
       ipfs_hash: 'QmYjtig7VJQ6XsnUjqqJvj7QaMcCAwtrgNdahSiFofrE7o',
-      price: BigInt('100000000000000000'), // 0.1 ETH
+      price: BigInt('100000000000000000'), // 0.1 STRK
       category: 'Computer Vision'
     },
     {
@@ -39,7 +39,7 @@ export const Marketplace = () => {
       name: 'Financial Time Series Data',
       owner: '0xabcdef1234567890abcdef1234567890abcdef12',
       ipfs_hash: 'QmNLei78zWmzUdbeRB3CiUfAizWUrbeeZh5K1rhAQKCh51',
-      price: BigInt('250000000000000000'), // 0.25 ETH
+      price: BigInt('250000000000000000'), // 0.25 STRK
       category: 'Financial Data'
     },
     {
@@ -47,7 +47,7 @@ export const Marketplace = () => {
       name: 'Medical X-Ray Dataset',
       owner: '0x567890abcdef1234567890abcdef1234567890ab',
       ipfs_hash: 'QmRAQB6YaCyidP37UdDnjFY5vQuiBrcqdyoW1CuDgwxkD4',
-      price: BigInt('500000000000000000'), // 0.5 ETH
+      price: BigInt('500000000000000000'), // 0.5 STRK
       category: 'Medical Data'
     }
   ]

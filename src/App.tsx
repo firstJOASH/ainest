@@ -45,6 +45,9 @@ const AppContent = () => {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Landing />} />
+          git push second main git@github.com: Permission denied (publickey).
+          fatal: Could not read from remote repository. Please make sure you
+          have the correct access rights and the repository exists.
           <Route path="/marketplace" element={<Marketplace />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/index" element={<Landing />} />
