@@ -6,6 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { DatasetPreviewModal } from "@/components/DatasetPreviewModal";
 import { Download, Eye, User, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useContracts, STRK_ADDRESS, AINEST_ADDRESS } from "@/utils/contracts";
+import { uint256 } from "starknet";
 
 interface DatasetCardProps {
   dataset: Dataset;
@@ -18,6 +20,7 @@ export const DatasetCard = ({
   onView,
   onPurchase,
 }: DatasetCardProps) => {
+  const { account } = useContracts();
   const cardRef = useRef<HTMLDivElement>(null);
   const { animateCardHover } = useGSAP();
   const { toast } = useToast();
@@ -50,22 +53,100 @@ export const DatasetCard = ({
     onView?.(dataset);
   };
 
+  // const handlePurchase = async () => {
+  //   setIsPurchasing(true);
+  //   try {
+  //     // Mock purchase process
+  //     await new Promise((resolve) => setTimeout(resolve, 2000));
+
+  //     toast({
+  //       title: "Purchase successful!",
+  //       description: `You have successfully purchased ${dataset.name}`,
+  //     });
+
+  //     onPurchase?.(dataset);
+  //   } catch (error) {
+  //     toast({
+  //       title: "Purchase failed",
+  //       description: "There was an error processing your purchase",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setIsPurchasing(false);
+  //   }
+  // };
+
+  // inside DatasetCard
+  // const handlePurchase = async () => {
+  //   setIsPurchasing(true);
+  //   try {
+  //     // const { account } = useContracts();
+  //     const { uint256 } = await import("starknet");
+
+  //     const priceUint = uint256.bnToUint256(dataset.price);
+  //     await account.execute([
+  //       {
+  //         contractAddress: STRK_ADDRESS,
+  //         entrypoint: "approve",
+  //         calldata: [AINEST_ADDRESS, priceUint.low, priceUint.high],
+  //       },
+  //       {
+  //         contractAddress: AINEST_ADDRESS,
+  //         entrypoint: "purchase_dataset",
+  //         calldata: [dataset.id],
+  //       },
+  //     ]);
+
+  //     toast({
+  //       title: "Purchase successful!",
+  //       description: `You purchased ${dataset.name}`,
+  //     });
+  //     onPurchase?.(dataset);
+  //   } catch (error: any) {
+  //     toast({
+  //       title: "Purchase failed",
+  //       description: error?.message || "Error",
+  //       variant: "destructive",
+  //     });
+  //     console.log(error.message);
+  //   } finally {
+  //     setIsPurchasing(false);
+  //   }
+  // };
+
   const handlePurchase = async () => {
+    if (!account) {
+      toast({
+        title: "Wallet not connected",
+        description: "Please connect your Starknet wallet before purchasing",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsPurchasing(true);
     try {
-      // Mock purchase process
-      await new Promise((resolve) => setTimeout(resolve, 2000));
+      const priceUint = uint256.bnToUint256(dataset.price);
 
-      toast({
-        title: "Purchase successful!",
-        description: `You have successfully purchased ${dataset.name}`,
-      });
+      await account.execute([
+        {
+          contractAddress: STRK_ADDRESS,
+          entrypoint: "approve",
+          calldata: [AINEST_ADDRESS, priceUint.low, priceUint.high],
+        },
+        {
+          contractAddress: AINEST_ADDRESS,
+          entrypoint: "purchase_dataset",
+          calldata: [dataset.id],
+        },
+      ]);
 
+      toast({ title: "Purchase successful!" });
       onPurchase?.(dataset);
     } catch (error) {
       toast({
         title: "Purchase failed",
-        description: "There was an error processing your purchase",
+        description: String(error),
         variant: "destructive",
       });
     } finally {

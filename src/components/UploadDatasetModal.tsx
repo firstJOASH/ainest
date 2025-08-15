@@ -20,55 +20,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { DATASET_CATEGORIES } from "@/lib/starknet";
-
-// Your contract address
-const AINEST_CONTRACT_ADDRESS = "0x123456789..."; // Replace with deployed address
-
-const abi = [
-  {
-    members: [
-      {
-        name: "low",
-        type: "felt",
-      },
-      {
-        name: "high",
-        type: "felt",
-      },
-    ],
-    name: "Uint256",
-    type: "struct",
-  },
-  {
-    inputs: [
-      {
-        name: "name",
-        type: "felt",
-      },
-      {
-        name: "symbol",
-        type: "felt",
-      },
-      {
-        name: "recipient",
-        type: "felt",
-      },
-    ],
-    name: "constructor",
-    type: "constructor",
-  },
-  {
-    inputs: [],
-    name: "name",
-    outputs: [
-      {
-        type: "felt",
-      },
-    ],
-    state_mutability: "view",
-    type: "function",
-  },
-] as const;
+import { AINEST_ADDRESS } from "@/utils/contracts";
+import AINEST_ABI from "@/utils/AINEST_ABI.json";
+import { encodeByteArray, ipfsHashToFelt252 } from "@/utils/cairo";
 
 // Simple IPFS uploader (Pinata example)
 async function uploadToIPFS(file: File) {
@@ -98,7 +52,7 @@ export const UploadDatasetModal = ({
   isOpen,
   onClose,
 }: UploadDatasetModalProps) => {
-  const { isConnected } = useAccount();
+  const { account, isConnected } = useAccount();
   const { toast } = useToast();
   const [isUploading, setIsUploading] = useState(false);
   const [formData, setFormData] = useState({
@@ -111,14 +65,14 @@ export const UploadDatasetModal = ({
 
   // Contract instance
   const { contract } = useContract({
-    abi,
-    address: AINEST_CONTRACT_ADDRESS,
+    abi: AINEST_ABI as any,
+    address: AINEST_ADDRESS,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!isConnected) {
+    if (!isConnected || !account) {
       toast({
         title: "Wallet not connected",
         description: "Please connect your wallet to upload datasets",
@@ -141,24 +95,26 @@ export const UploadDatasetModal = ({
     try {
       // 1. Upload dataset file to IPFS
       const ipfsHash = await uploadToIPFS(formData.file);
+      const ipfsHashFelt = ipfsHashToFelt252(ipfsHash);
 
       // 2. Prepare calldata
-      const nameFeltArray = Array.from(new TextEncoder().encode(formData.name));
+      const nameByteArray = encodeByteArray(formData.name);
+      const categoryByteArray = encodeByteArray(formData.category);
       const priceBigInt = BigInt(Math.floor(Number(formData.price) * 1e18));
       const priceLow = priceBigInt & ((1n << 128n) - 1n);
       const priceHigh = priceBigInt >> 128n;
 
       // 3. Call contract's register_dataset
       await contract?.invoke("register_dataset", [
-        nameFeltArray,
-        ipfsHash,
-        priceLow,
-        priceHigh,
+        ...nameByteArray,
+        ipfsHashFelt,
+        priceLow.toString(),
+        priceHigh.toString(),
+        ...categoryByteArray,
       ]);
 
       toast({
         title: "Dataset uploaded successfully!",
-        // description: `Dataset is now on the marketplace. IPFS Hash: ${ipfsHash}`,
       });
 
       onClose();
