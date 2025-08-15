@@ -29,7 +29,17 @@ export const DatasetPreviewModal = ({
   };
 
   const formatPrice = (price: bigint) => {
-    return `${Number(price) / 1e18} STRK`;
+    const priceInStrk = Number(price);
+
+    if (priceInStrk === 0) {
+      return "Free";
+    } else if (priceInStrk < 0.001) {
+      return `${priceInStrk.toFixed(18)} STRK`;
+    } else if (priceInStrk < 1) {
+      return `${priceInStrk.toFixed(18)} STRK`;
+    } else {
+      return `${priceInStrk.toFixed(3)} STRK`;
+    }
   };
 
   return (

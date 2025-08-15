@@ -283,18 +283,59 @@ export const Marketplace = () => {
         // 2) read each dataset
         for (let id = 1; id <= count; id++) {
           try {
+            console.log(`\n=== Loading Dataset ${id} ===`);
             const d: any = await (contract as any).get_dataset(toU256(id));
+            console.log(`Dataset ${id} full contract response:`, d);
 
             const owner = d.owner ?? d[0];
             const ipfs_hash = d.ipfs_hash ?? d[2];
             const priceU256 = d.price ?? d[3];
             const category = d.category ?? d[4];
 
-            const price = Number(fromU256(priceU256)); // Raw u256 in Wei
-            const name = decodeByteArray(d.name ?? d[1]) || safeName(id);
-            const categoryStr = decodeByteArray(category) || "Uncategorized";
+            const formatPrice = (price: bigint) => {
+              const priceInStrk = Number(price);
 
-            results.push({
+              if (priceInStrk === 0) {
+                return "Free";
+              } else if (priceInStrk < 0.001) {
+                return `${priceInStrk.toFixed(18)} STRK`;
+              } else if (priceInStrk < 1) {
+                return `${priceInStrk.toFixed(18)} STRK`;
+              } else {
+                return `${priceInStrk.toFixed(3)} STRK`;
+              }
+            };
+
+            const priceRaw = fromU256(priceU256); // Raw bigint value in Wei
+
+            // Debug the raw name data from contract
+            const rawNameData = d.name ?? d[1];
+            console.log(`Dataset ${id} raw name data:`, rawNameData);
+            console.log(
+              `Dataset ${id} raw name data type:`,
+              typeof rawNameData
+            );
+
+            let name: string;
+
+            // Since it’s already a string, use it directly
+            if (typeof rawNameData === "string" && rawNameData.trim() !== "") {
+              name = rawNameData.trim();
+              console.log(`Dataset ${id} using raw string name: "${name}"`);
+            } else {
+              // Only decode if it's not a string (i.e., it's a ByteArray)
+              const decodedName = decodeByteArray(rawNameData);
+              console.log(`Dataset ${id} decoded name: "${decodedName}"`);
+              name = decodedName || safeName(id);
+              console.log(
+                `Dataset ${id} using decoded/fallback name: "${name}"`
+              );
+            }
+
+            const categoryStr = category || "Uncategorized";
+            console.log(`Dataset ${id} category: "${categoryStr}"`);
+
+            const datasetObj = {
               id: BigInt(id),
               name,
               owner:
@@ -305,9 +346,14 @@ export const Marketplace = () => {
                 typeof ipfs_hash === "string"
                   ? ipfs_hash
                   : `0x${BigInt(ipfs_hash).toString(16)}`,
-              price, // Pass raw bigint for DatasetCard to format
+              price: priceRaw, // Use raw bigint for calculations
               category: categoryStr as DatasetCategory,
-            });
+            };
+
+            console.log(`Dataset ${id} final object:`, datasetObj);
+            console.log(`=== End Dataset ${id} ===\n`);
+
+            results.push(datasetObj);
           } catch (e) {
             // Skip missing IDs gracefully
             console.log(`get_dataset(${id}) failed`, e);

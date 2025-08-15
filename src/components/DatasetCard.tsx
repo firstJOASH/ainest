@@ -32,9 +32,19 @@ export const DatasetCard = ({
   };
 
   const formatPrice = (price: bigint) => {
-    // Convert wei to STRK (simplified)
-    return `${Number(price) / 1e18} STRK`;
+    const priceInStrk = Number(price);
+
+    if (priceInStrk === 0) {
+      return "Free";
+    } else if (priceInStrk < 0.001) {
+      return `${priceInStrk.toFixed(18)} STRK`;
+    } else if (priceInStrk < 1) {
+      return `${priceInStrk.toFixed(18)} STRK`;
+    } else {
+      return `${priceInStrk.toFixed(3)} STRK`;
+    }
   };
+  const priceDisplay = formatPrice(dataset.price);
 
   const handleMouseEnter = () => {
     if (cardRef.current) {
@@ -179,9 +189,7 @@ export const DatasetCard = ({
 
       {/* Price */}
       <div className="mb-4">
-        <div className="text-2xl font-bold text-foreground">
-          {formatPrice(dataset.price)}
-        </div>
+        <div className="text-2xl font-bold text-foreground">{priceDisplay}</div>
         <div className="text-sm text-muted-foreground">
           Dataset #{dataset.id.toString()}
         </div>
