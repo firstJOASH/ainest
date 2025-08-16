@@ -1,55 +1,94 @@
+import { shortString } from "starknet";
+
 /**
  * Decode Cairo's core::byte_array::ByteArray to UTF-8 string.
  * Works for starknet.js call results where ByteArray is represented as:
  * { data: bytes31[], pending_word: felt252, pending_word_len: felt252 }
  */
+
 export function decodeByteArray(byteArray: any): string {
   if (!byteArray) return "";
 
-  try {
-    // Handle different response formats from starknet.js
-    let data: any[] = [];
-    let pendingWord = 0n;
-    let pendingWordLen = 0;
-
-    if (Array.isArray(byteArray)) {
-      // Format: [data_len, ...data, pending_word, pending_word_len]
-      if (byteArray.length >= 3) {
-        const dataLen = Number(byteArray[0]);
-        data = byteArray.slice(1, 1 + dataLen);
-        pendingWord = BigInt(byteArray[1 + dataLen] || 0);
-        pendingWordLen = Number(byteArray[1 + dataLen + 1] || 0);
-      }
-    } else if (byteArray.data) {
-      // Format: { data: [...], pending_word: felt, pending_word_len: number }
-      data = byteArray.data || [];
-      pendingWord = BigInt(byteArray.pending_word || 0);
-      pendingWordLen = Number(byteArray.pending_word_len || 0);
+  // Handle plain strings (already decoded by starknet.js sometimes)
+  if (typeof byteArray === "string") {
+    try {
+      return shortString.decodeShortString(byteArray);
+    } catch {
+      return byteArray; // fallback: just return as-is
     }
-
-    const bytes: number[] = [];
-
-    // Decode bytes31 array (each entry = up to 31 bytes in a felt)
-    for (const felt of data) {
-      if (!felt) continue;
-      const num = BigInt(felt);
-      const chunk = feltToBytes(num, 31);
-      bytes.push(...chunk);
-    }
-
-    // Decode pending_word (remaining bytes not filling a full bytes31)
-    if (pendingWord && BigInt(pendingWord) !== 0n && pendingWordLen > 0) {
-      const pendingBytes = feltToBytes(BigInt(pendingWord), pendingWordLen);
-      bytes.push(...pendingBytes);
-    }
-
-    // Remove trailing null bytes and convert to UTF-8
-    const trimmedBytes = bytes.filter((b) => b !== 0);
-    return utf8Decode(trimmedBytes);
-  } catch (error) {
-    console.warn("Failed to decode ByteArray:", error);
-    return "";
   }
+
+  // Handle the Cairo ByteArray struct { data, pending_word, pending_word_len }
+  if (typeof byteArray === "object" && "pending_word" in byteArray) {
+    try {
+      const hex = byteArray.pending_word;
+      return Buffer.from(hex.replace(/^0x/, ""), "hex")
+        .toString("utf8")
+        .slice(0, Number(byteArray.pending_word_len));
+    } catch {
+      return "";
+    }
+  }
+
+  // Handle raw array of felts
+  if (Array.isArray(byteArray)) {
+    try {
+      return byteArray
+        .map((felt) => {
+          try {
+            return String.fromCharCode(Number(felt));
+          } catch {
+            return "";
+          }
+        })
+        .join("")
+        .trim();
+    } catch {
+      return "";
+    }
+  }
+
+  return "";
+}
+
+export type ByteArrayStruct = {
+  data: string[]; // hex felts (each up to 31 bytes)
+  pending_word: string; // hex felt
+  pending_word_len: string; // decimal string
+};
+
+/**
+ * Convert a JS string into a Cairo v2 ByteArray struct.
+ * - Splits into 31-byte chunks for `data`.
+ * - Remaining bytes go into `pending_word` + `pending_word_len`.
+ */
+export function stringToByteArrayStruct(str: string) {
+  const bytes = Array.from(new TextEncoder().encode(str));
+  const data: string[] = [];
+  let pending_word = "0x0";
+  let pending_word_len = 0;
+
+  for (let i = 0; i < bytes.length; i += 31) {
+    const chunk = bytes.slice(i, i + 31);
+    let felt = 0n;
+    for (const b of chunk) {
+      felt = (felt << 8n) + BigInt(b);
+    }
+    const hex = "0x" + felt.toString(16);
+
+    if (chunk.length === 31) {
+      data.push(hex);
+    } else {
+      pending_word = hex;
+      pending_word_len = chunk.length;
+    }
+  }
+
+  return {
+    data,
+    pending_word,
+    pending_word_len: pending_word_len.toString(),
+  };
 }
 
 /**
@@ -134,8 +173,6 @@ export function ipfsHashToFelt252(ipfsHash: string): string {
   const cleanHash = ipfsHash.startsWith("Qm") ? ipfsHash.slice(2) : ipfsHash;
 
   // Convert the hash to bytes and then to felt252
-  // Note: This is a simplified conversion. In production, you might want
-  // to use a proper base58 decoder for IPFS hashes
   const encoder = new TextEncoder();
   const bytes = encoder.encode(cleanHash);
 
@@ -169,4 +206,17 @@ export function felt252ToIpfsHash(felt: string | bigint): string {
   const hashString = decoder.decode(new Uint8Array(bytes));
 
   return "Qm" + hashString;
+}
+
+export function parseUint256FromIntegerString(s: string): {
+  low: string;
+  high: string;
+} {
+  if (!/^\d+$/.test(s.trim())) {
+    throw new Error("Price must be a whole number (no decimals).");
+  }
+  const v = BigInt(s);
+  const low = v & ((1n << 128n) - 1n);
+  const high = v >> 128n;
+  return { low: low.toString(), high: high.toString() };
 }

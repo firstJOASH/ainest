@@ -1,5 +1,9 @@
 import { useState } from "react";
-import { useAccount, useContract } from "@starknet-react/core";
+import {
+  useAccount,
+  useContract,
+  useSendTransaction,
+} from "@starknet-react/core";
 import {
   Dialog,
   DialogContent,
@@ -22,27 +26,15 @@ import { useToast } from "@/hooks/use-toast";
 import { DATASET_CATEGORIES } from "@/lib/starknet";
 import { AINEST_ADDRESS } from "@/utils/contracts";
 import AINEST_ABI from "@/utils/AINEST_ABI.json";
-import { encodeByteArray, ipfsHashToFelt252 } from "@/utils/cairo";
+import {
+  ipfsHashToFelt252,
+  parseUint256FromIntegerString,
+} from "@/utils/cairo";
 
-// Simple IPFS uploader (Pinata example)
-async function uploadToIPFS(file: File) {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const res = await fetch(`https://api.pinata.cloud/pinning/pinFileToIPFS`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${process.env.NEXT_PUBLIC_PINATA_JWT}`,
-    },
-    body: formData,
-  });
-
-  if (!res.ok) throw new Error("Failed to upload file to IPFS");
-
-  const data = await res.json();
-  return data.IpfsHash; // CID
+// Mock IPFS upload (simulated hash)
+async function mockUploadToIPFS(file: File) {
+  return "QmMockHash1234"; // Static CID for testing
 }
-
 interface UploadDatasetModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -63,10 +55,13 @@ export const UploadDatasetModal = ({
     file: null as File | null,
   });
 
-  // Contract instance
   const { contract } = useContract({
     abi: AINEST_ABI as any,
     address: AINEST_ADDRESS,
+  });
+
+  const { send, reset, isPending, isError } = useSendTransaction({
+    calls: undefined,
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,33 +85,59 @@ export const UploadDatasetModal = ({
       return;
     }
 
+    if (!formData.name.trim()) {
+      toast({
+        title: "Invalid name",
+        description: "Please enter a valid dataset name",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.category) {
+      toast({
+        title: "Invalid category",
+        description: "Please select a category",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
-      // 1. Upload dataset file to IPFS
-      const ipfsHash = await uploadToIPFS(formData.file);
+      // 1) Mock IPFS
+      const ipfsHash = await mockUploadToIPFS(formData.file!);
       const ipfsHashFelt = ipfsHashToFelt252(ipfsHash);
 
-      // 2. Prepare calldata
-      const nameByteArray = encodeByteArray(formData.name);
-      const categoryByteArray = encodeByteArray(formData.category);
-      const priceBigInt = BigInt(Math.floor(Number(formData.price) * 1e18));
-      const priceLow = priceBigInt & ((1n << 128n) - 1n);
-      const priceHigh = priceBigInt >> 128n;
+      // 2) Encode ByteArrays as *structs*
+      const nameBA = formData.name;
+      const categoryBA = formData.category;
 
-      // 3. Call contract's register_dataset
-      await contract?.invoke("register_dataset", [
-        ...nameByteArray,
-        ipfsHashFelt,
-        priceLow.toString(),
-        priceHigh.toString(),
-        ...categoryByteArray,
-      ]);
+      // 3) Price as integer → u256
+      const priceU256 = parseUint256FromIntegerString(formData.price);
 
-      toast({
-        title: "Dataset uploaded successfully!",
+      console.log("Calling with:", {
+        name: nameBA,
+        ipfs_hash: ipfsHashFelt,
+        price: priceU256,
+        category: categoryBA,
       });
 
+      // 4) Build the call with the correct shapes
+      // Positional args assuming Cairo fn signature is:
+      // fn register_dataset(name: ByteArray, ipfs_hash: felt252, price: u256, category: ByteArray)
+      const call = contract?.populate("register_dataset", {
+        name: nameBA,
+        ipfs_hash: ipfsHashFelt,
+        price: { low: priceU256.low, high: priceU256.high },
+        category: categoryBA,
+      });
+
+      // 5) Send
+      send([call]);
+
+      toast({ title: "Dataset uploaded successfully!" });
       onClose();
       setFormData({
         name: "",
@@ -126,15 +147,16 @@ export const UploadDatasetModal = ({
         file: null,
       });
     } catch (error: any) {
-      console.error(error);
+      console.error("Upload failed:", error);
       toast({
         title: "Upload failed",
         description:
-          error?.message || "There was an error uploading your dataset",
+          error?.message ?? "There was an error uploading your dataset",
         variant: "destructive",
       });
     } finally {
       setIsUploading(false);
+      if (isError) reset();
     }
   };
 
@@ -250,9 +272,9 @@ export const UploadDatasetModal = ({
             <Button
               type="submit"
               className="flex-1 ainest-btn-primary"
-              disabled={isUploading}
+              disabled={isUploading || isPending}
             >
-              {isUploading ? (
+              {isPending || isUploading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Uploading...
