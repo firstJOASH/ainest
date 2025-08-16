@@ -33,7 +33,7 @@ import {
 
 // Mock IPFS upload (simulated hash)
 async function mockUploadToIPFS(file: File) {
-  return "QmMockHash1234"; // Static CID for testing
+  return "QmMockHash12"; // Static CID for testing
 }
 interface UploadDatasetModalProps {
   isOpen: boolean;

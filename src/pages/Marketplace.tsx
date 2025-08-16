@@ -42,7 +42,6 @@ export const Marketplace = () => {
   const [sortBy, setSortBy] = useState<"newest" | "price" | "popular">(
     "newest"
   );
-  const [contractDatasets, setContractDatasets] = useState<Dataset[]>([]);
 
   const {
     selectedCategory,
@@ -50,6 +49,8 @@ export const Marketplace = () => {
     setSearchQuery,
     isLoading,
     setLoading,
+    contractDatasets,
+    setContractDatasets,
   } = useAppStore();
 
   const { account } = useAccount();
@@ -84,20 +85,6 @@ export const Marketplace = () => {
             const ipfs_hash = d.ipfs_hash ?? d[2];
             const priceU256 = d.price ?? d[3];
             const category = d.category ?? d[4];
-
-            const formatPrice = (price: bigint) => {
-              const priceInStrk = Number(price); // No division by 1e18
-
-              if (priceInStrk === 0) {
-                return "Free";
-              } else if (priceInStrk < 0.001) {
-                return `${priceInStrk.toFixed(18)} STRK`;
-              } else if (priceInStrk < 1) {
-                return `${priceInStrk.toFixed(3)} STRK`;
-              } else {
-                return `${priceInStrk.toFixed(2)} STRK`;
-              }
-            };
 
             const priceRaw = fromU256(priceU256); // Raw bigint value
 
@@ -152,7 +139,7 @@ export const Marketplace = () => {
             console.log(`get_dataset(${id}) failed`, e);
           }
         }
-
+        console.log("Fetched datasets:", results);
         setContractDatasets(results);
       } catch (e) {
         console.error("Failed to load datasets:", e);
