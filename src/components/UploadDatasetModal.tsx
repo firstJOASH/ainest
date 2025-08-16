@@ -33,7 +33,7 @@ import {
 
 // Mock IPFS upload (simulated hash)
 async function mockUploadToIPFS(file: File) {
-  return "QmMockHash12"; // Static CID for testing
+  return "QmMockHash12345678"; // Static CID for testing
 }
 interface UploadDatasetModalProps {
   isOpen: boolean;
@@ -115,7 +115,12 @@ export const UploadDatasetModal = ({
       const categoryBA = formData.category;
 
       // 3) Price as integer → u256
+      // 3) Convert STRK decimal input to wei (BigInt) → u256
+      // 1 STRK = 10^18 wei
+      // const priceWei = BigInt(Math.floor(Number(formData.price) * 1e18));
       const priceU256 = parseUint256FromIntegerString(formData.price);
+
+      console.log("User input price (STRK):", formData.price);
 
       console.log("Calling with:", {
         name: nameBA,

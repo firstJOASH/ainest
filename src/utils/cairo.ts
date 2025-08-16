@@ -133,39 +133,6 @@ export function encodeByteArray(str: string): string[] {
 }
 
 /**
- * Convert a felt into an array of bytes, big-endian order.
- * Only extracts the meaningful bytes (removes leading zeros).
- */
-function feltToBytes(felt: bigint, maxLen: number): number[] {
-  if (felt === 0n) return [];
-
-  const hex = felt.toString(16);
-  const bytes: number[] = [];
-
-  // Pad to even length
-  const paddedHex = hex.length % 2 === 0 ? hex : "0" + hex;
-
-  for (let i = 0; i < paddedHex.length && bytes.length < maxLen; i += 2) {
-    bytes.push(parseInt(paddedHex.slice(i, i + 2), 16));
-  }
-
-  return bytes;
-}
-
-/**
- * Convert array of bytes into a UTF-8 string.
- */
-function utf8Decode(bytes: number[]): string {
-  if (typeof TextDecoder !== "undefined") {
-    return new TextDecoder("utf-8", { fatal: false }).decode(
-      new Uint8Array(bytes)
-    );
-  }
-  // Fallback (Node.js)
-  return Buffer.from(bytes).toString("utf8");
-}
-
-/**
  * Convert IPFS hash (string) to felt252 for storage
  */
 export function ipfsHashToFelt252(ipfsHash: string): string {
@@ -208,15 +175,12 @@ export function felt252ToIpfsHash(felt: string | bigint): string {
   return "Qm" + hashString;
 }
 
-export function parseUint256FromIntegerString(s: string): {
-  low: string;
-  high: string;
-} {
-  if (!/^\d+$/.test(s.trim())) {
-    throw new Error("Price must be a whole number (no decimals).");
-  }
-  const v = BigInt(s);
-  const low = v & ((1n << 128n) - 1n);
-  const high = v >> 128n;
+export function parseUint256FromIntegerString(amountStr: string) {
+  const [intPart, fracPart = ""] = amountStr.split(".");
+  const fracPadded = (fracPart + "0".repeat(18)).slice(0, 18);
+  const weiStr = intPart + fracPadded;
+  const wei = BigInt(weiStr.replace(/^0+/, "") || "0");
+  const low = wei & ((1n << 128n) - 1n);
+  const high = wei >> 128n;
   return { low: low.toString(), high: high.toString() };
 }

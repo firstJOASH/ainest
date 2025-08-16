@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useMemo } from "react";
 import { useAccount } from "@starknet-react/core";
 import { useAppStore } from "@/stores/useAppStore";
 import { useGSAP } from "@/hooks/useGSAP";
@@ -11,21 +11,52 @@ import { Upload, Download, Wallet, Copy, ExternalLink } from "lucide-react";
 export const Profile = () => {
   const profileRef = useRef<HTMLDivElement>(null);
   const { animatePageEnter } = useGSAP();
-
   const { address, isConnected } = useAccount();
-  const { userStats, setUploadModalOpen } = useAppStore();
+  const { contractDatasets, setUploadModalOpen } = useAppStore();
 
-  // Mock user datasets
-  const userDatasets: Dataset[] = [
-    {
-      id: BigInt(4),
-      name: "Custom NLP Dataset",
-      owner: address || "0x0",
-      ipfs_hash: "QmYjtig7VJQ6XsnUjqqJvj7QaMcCAwtrgNdahSiFofrE7o",
-      price: BigInt("150000000000000000"), // 0.15 STRK
-      category: "Natural Language Processing",
-    },
-  ];
+  // Filter datasets owned by current user
+  const myDatasets = useMemo(
+    () =>
+      contractDatasets.filter(
+        (dataset) => dataset.owner.toLowerCase() === address?.toLowerCase()
+      ),
+    [contractDatasets, address]
+  );
+
+  // Compute stats
+  const totalUploads = myDatasets.length;
+  const totalEarned = myDatasets.reduce(
+    (acc, dataset) => acc + Number(dataset.price) / 1e18,
+    0
+  );
+  const totalDownloads = myDatasets.reduce(
+    (acc, dataset) => acc + (dataset.downloads || 0),
+    0
+  );
+
+  // Mock recent activity for now (replace with actual events if available)
+  const recentActivity = useMemo(() => {
+    const uploads = myDatasets.map((d) => ({
+      type: "upload" as const,
+      datasetName: d.name,
+      time: d.createdAt || new Date().toISOString(), // store timestamp when uploading
+    }));
+
+    // If you track purchases in your store, you can append them here
+    const purchases: { type: "purchase"; datasetName: string; time: string }[] =
+      [];
+
+    // Add wallet connected event
+    const walletConnect = {
+      type: "wallet",
+      datasetName: "Wallet connected",
+      time: new Date().toISOString(),
+    };
+
+    return [...uploads, ...purchases, walletConnect].sort(
+      (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
+    );
+  }, [myDatasets]);
 
   useEffect(() => {
     if (profileRef.current) {
@@ -33,18 +64,15 @@ export const Profile = () => {
     }
   }, []);
 
-  const formatAddress = (addr: string) => {
-    return `${addr.slice(0, 8)}...${addr.slice(-6)}`;
-  };
+  const formatAddress = (addr: string) =>
+    `${addr.slice(0, 8)}...${addr.slice(-6)}`;
 
   const copyAddress = () => {
-    if (address) {
-      navigator.clipboard.writeText(address);
-    }
+    if (address) navigator.clipboard.writeText(address);
   };
 
-  const generateAvatar = (address: string) => {
-    const hash = address.slice(2, 8);
+  const generateAvatar = (addr: string) => {
+    const hash = addr.slice(2, 8);
     const hue = parseInt(hash, 16) % 360;
     return `hsl(${hue}, 50%, 50%)`;
   };
@@ -121,23 +149,23 @@ export const Profile = () => {
                   <span className="text-sm text-muted-foreground">
                     Uploads:
                   </span>
-                  <Badge variant="secondary">
-                    {userStats?.uploads || userDatasets.length}
-                  </Badge>
+                  <Badge variant="secondary">{totalUploads}</Badge>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Download className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">
                     Downloads:
                   </span>
-                  <Badge variant="secondary">{userStats?.downloads || 0}</Badge>
+                  <Badge variant="secondary">{totalDownloads}</Badge>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Wallet className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">
                     Total Earned:
                   </span>
-                  <Badge variant="secondary">0.15 STRK</Badge>
+                  <Badge variant="secondary">
+                    {totalEarned.toFixed(3)} STRK
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -162,13 +190,13 @@ export const Profile = () => {
               My Datasets
             </h2>
             <p className="text-muted-foreground">
-              {userDatasets.length} datasets
+              {myDatasets.length} datasets
             </p>
           </div>
 
-          {userDatasets.length > 0 ? (
+          {myDatasets.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {userDatasets.map((dataset) => (
+              {myDatasets.map((dataset) => (
                 <DatasetCard
                   key={dataset.id.toString()}
                   dataset={dataset}
@@ -204,37 +232,36 @@ export const Profile = () => {
 
           <div className="ainest-card">
             <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-border last:border-b-0">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                  <span className="text-foreground">
-                    Dataset uploaded: Custom NLP Dataset
+              {recentActivity.map((act, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between py-3 border-b border-border last:border-b-0"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div
+                      className={`w-2 h-2 rounded-full ${
+                        act.type === "upload"
+                          ? "bg-green-500"
+                          : act.type === "purchase"
+                          ? "bg-blue-500"
+                          : "bg-purple-500"
+                      }`}
+                    ></div>
+                    <span className="text-foreground">
+                      {act.type === "wallet"
+                        ? act.datasetName
+                        : `${
+                            act.type === "upload"
+                              ? "Dataset uploaded:"
+                              : "Purchased:"
+                          } ${act.datasetName}`}
+                    </span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {new Date(act.time).toLocaleString()}
                   </span>
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  2 hours ago
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-border last:border-b-0">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                  <span className="text-foreground">
-                    Purchased: ImageNet Classification Dataset
-                  </span>
-                </div>
-                <span className="text-sm text-muted-foreground">1 day ago</span>
-              </div>
-
-              <div className="flex items-center justify-between py-3">
-                <div className="flex items-center space-x-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
-                  <span className="text-foreground">Wallet connected</span>
-                </div>
-                <span className="text-sm text-muted-foreground">
-                  3 days ago
-                </span>
-              </div>
+              ))}
             </div>
           </div>
         </div>

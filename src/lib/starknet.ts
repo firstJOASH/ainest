@@ -6,7 +6,7 @@ import { WebWalletConnector } from "starknetkit/webwallet";
 
 // Contract addresses - Update these with actual deployed contract addresses
 export const CONTRACT_ADDRESS =
-  "0x044329da1943e0d64edf27b1d165d3eac656f775fdea4118ccc1e08a35099471";
+  "0x02112566c584fdad21d338baf2b839d60b7f04149354293759692f8a31ee6e39";
 
 // Dataset interface matching Cairo contract
 export interface Dataset {

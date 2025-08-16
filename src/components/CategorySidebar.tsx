@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { useGSAP } from "@/hooks/useGSAP";
 import { useAppStore } from "@/stores/useAppStore";
 import { DATASET_CATEGORIES, DatasetCategory } from "@/lib/starknet";
@@ -8,7 +8,6 @@ import { Plus, Folder } from "lucide-react";
 export const CategorySidebar = () => {
   const sidebarRef = useRef<HTMLDivElement>(null);
   const { animatePageEnter } = useGSAP();
-
   const {
     selectedCategory,
     setSelectedCategory,
@@ -16,26 +15,44 @@ export const CategorySidebar = () => {
     contractDatasets,
   } = useAppStore();
 
+  const [totalVolumeSTRK, setTotalVolumeSTRK] = useState("0.000");
+  const [totalDatasets, setTotalDatasets] = useState(0);
+  const [activeUsersCount, setActiveUsersCount] = useState(0);
+
   useEffect(() => {
     if (sidebarRef.current) {
       animatePageEnter(sidebarRef.current);
     }
   }, []);
 
+  // Recalculate stats whenever contractDatasets changes
+  useEffect(() => {
+    setTotalDatasets(contractDatasets.length);
+
+    // Total Volume
+    const totalVolumeWei = contractDatasets.reduce(
+      (sum, d) => sum + d.price,
+      0n
+    );
+    const strkWhole = totalVolumeWei / 10n ** 18n;
+    const strkFraction = (totalVolumeWei % 10n ** 18n) / 10n ** 15n; // 3 decimals
+    const formattedWhole = strkWhole
+      .toString()
+      .replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    setTotalVolumeSTRK(
+      `${formattedWhole}.${strkFraction.toString().padStart(3, "0")}`
+    );
+
+    // Active Users
+    const uniqueUsers = new Set<string>();
+    contractDatasets.forEach((d) => uniqueUsers.add(d.owner.toLowerCase()));
+    setActiveUsersCount(uniqueUsers.size);
+  }, [contractDatasets]);
+
   const categories: (DatasetCategory | "All")[] = [
     "All",
     ...DATASET_CATEGORIES,
   ];
-
-  const totalDatasets = contractDatasets.length;
-  console.log(contractDatasets);
-
-  const totalVolume = contractDatasets.reduce((sum, d) => sum + d.price, 0n);
-
-  const uniqueUsers = new Set<string>();
-  contractDatasets.forEach((d) => uniqueUsers.add(d.owner.toLowerCase()));
-  // Optionally include buyers from events
-  const activeUsersCount = uniqueUsers.size;
 
   return (
     <div
@@ -92,7 +109,7 @@ export const CategorySidebar = () => {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Total Volume</span>
               <span className="font-medium text-foreground">
-                {Number(totalVolume) / 1e18} STRK
+                {totalVolumeSTRK} STRK
               </span>
             </div>
             <div className="flex justify-between">
