@@ -132,13 +132,24 @@ export const UploadDatasetModal = ({
       // 4) Build the call with the correct shapes
       // Positional args assuming Cairo fn signature is:
       // fn register_dataset(name: ByteArray, ipfs_hash: felt252, price: u256, category: ByteArray)
-      const call = contract?.populate("register_dataset", {
-        name: nameBA,
-        ipfs_hash: ipfsHashFelt,
-        price: { low: priceU256.low, high: priceU256.high },
-        category: categoryBA,
-      });
 
+
+
+
+      // Using positional arguments
+      const call = contract?.populate("register_dataset", [
+        formData.name,           // name: ByteArray
+        ipfsHashFelt,           // ipfs_hash: felt252  
+        priceU256.low,          // price.low: u128
+        priceU256.high,         // price.high: u128
+        formData.category       // category: ByteArray
+      ]);
+      
+      if (!call) {
+        throw new Error("Failed to create contract call");
+      }
+
+      console.log("Contract call:", call);
       // 5) Send
       send([call]);
 
