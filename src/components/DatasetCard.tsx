@@ -154,6 +154,10 @@ export const DatasetCard = ({
       return;
     }
 
+// Custom reset function to clear states
+const resetPurchaseState = () => {
+  setIsPurchasing(false);
+};
     setIsPurchasing(true);
     try {
       // Convert dataset price to u256 for the transaction
@@ -183,16 +187,30 @@ export const DatasetCard = ({
 
       toast({ title: "Purchase successful!" });
       onPurchase?.(dataset);
-    } catch (err: any) {
+    }catch (err: any) {
       console.error("Purchase failed:", err);
+      
+      // Enhanced error messages based on common issues
+      let errorMessage = "An unexpected error occurred";
+      
+      if (err?.message?.includes("insufficient")) {
+        errorMessage = "Insufficient STRK balance. Please check your wallet balance.";
+      } else if (err?.message?.includes("not executed") || err?.message?.includes("Unknown error")) {
+        errorMessage = "Transaction failed. This could be due to insufficient balance, gas issues, or the dataset is no longer available.";
+      } else if (err?.message?.includes("rejected")) {
+        errorMessage = "Transaction was rejected in wallet.";
+      } else if (err?.message?.includes("timeout")) {
+        errorMessage = "Transaction timed out. Please try again.";
+      } else if (err?.message) {
+        errorMessage = err.message;
+      }
       toast({
         title: "Purchase failed",
-        description: err?.message ?? "An unexpected error occurred",
-        variant: "destructive",
+        description: errorMessage,
+        variant: "destructive"
       });
     } finally {
-      setIsPurchasing(false);
-      if (isError) reset();
+resetPurchaseState();
     }
   };
 
