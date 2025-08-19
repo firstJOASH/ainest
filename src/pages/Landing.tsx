@@ -18,7 +18,7 @@ export const Landing = () => {
   const featuresRef = useRef<HTMLDivElement>(null);
   const stepsRef = useRef<HTMLDivElement>(null);
   const { animatePageEnter, animateTextReveal } = useGSAP();
-  const { setUploadModalOpen } = useAppStore();
+  const { setUploadModalOpen, contractDatasets } = useAppStore();
 
   useEffect(() => {
     if (heroRef.current) {
@@ -31,6 +31,12 @@ export const Landing = () => {
       animateTextReveal(stepsRef.current);
     }
   }, []);
+
+  // === Stats synced with marketplace ===
+  const totalDatasets = contractDatasets.length;
+  const uniqueUsers = new Set<string>();
+  contractDatasets.forEach((d) => uniqueUsers.add(d.owner.toLowerCase()));
+  const activeUsersCount = uniqueUsers.size;
 
   const features = [
     {
@@ -106,14 +112,15 @@ export const Landing = () => {
                 </Button>
               </Link>
 
+              {/* Dynamic stats */}
               <div className="flex items-center space-x-4 text-muted-foreground">
                 <div className="flex items-center space-x-2">
                   <Download className="h-4 w-4" />
-                  <span className="text-sm">1,247 Datasets</span>
+                  <span className="text-sm">{totalDatasets} Datasets</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users className="h-4 w-4" />
-                  <span className="text-sm">3,891 Users</span>
+                  <span className="text-sm">{activeUsersCount} Users</span>
                 </div>
               </div>
             </div>

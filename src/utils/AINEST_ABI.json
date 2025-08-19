@@ -1,7 +1,7 @@
 [
   {
-    "name": "constructor",
     "type": "constructor",
+    "name": "constructor",
     "inputs": [
       {
         "name": "strk_token",
@@ -14,8 +14,8 @@
     ]
   },
   {
-    "name": "core::byte_array::ByteArray",
     "type": "struct",
+    "name": "core::byte_array::ByteArray",
     "members": [
       {
         "name": "data",
@@ -32,8 +32,8 @@
     ]
   },
   {
-    "name": "core::integer::u256",
     "type": "struct",
+    "name": "core::integer::u256",
     "members": [
       {
         "name": "low",
@@ -46,8 +46,8 @@
     ]
   },
   {
-    "name": "register_dataset",
     "type": "function",
+    "name": "register_dataset",
     "inputs": [
       {
         "name": "name",
@@ -74,9 +74,27 @@
     "state_mutability": "external"
   },
   {
-    "name": "ainest_contract::ainest_registry::AInestRegistry::Dataset",
+    "type": "enum",
+    "name": "core::bool",
+    "variants": [
+      {
+        "name": "False",
+        "type": "()"
+      },
+      {
+        "name": "True",
+        "type": "()"
+      }
+    ]
+  },
+  {
     "type": "struct",
+    "name": "ainest_contract::ainest_registry::AInestRegistry::Dataset",
     "members": [
+      {
+        "name": "originalOwner",
+        "type": "core::starknet::contract_address::ContractAddress"
+      },
       {
         "name": "owner",
         "type": "core::starknet::contract_address::ContractAddress"
@@ -96,12 +114,16 @@
       {
         "name": "category",
         "type": "core::byte_array::ByteArray"
+      },
+      {
+        "name": "listed",
+        "type": "core::bool"
       }
     ]
   },
   {
-    "name": "get_dataset",
     "type": "function",
+    "name": "get_dataset",
     "inputs": [
       {
         "name": "dataset_id",
@@ -116,8 +138,8 @@
     "state_mutability": "view"
   },
   {
-    "name": "get_dataset_count",
     "type": "function",
+    "name": "get_dataset_count",
     "inputs": [],
     "outputs": [
       {
@@ -127,22 +149,8 @@
     "state_mutability": "view"
   },
   {
-    "name": "core::bool",
-    "type": "enum",
-    "variants": [
-      {
-        "name": "False",
-        "type": "()"
-      },
-      {
-        "name": "True",
-        "type": "()"
-      }
-    ]
-  },
-  {
-    "name": "verify_ipfs_hash",
     "type": "function",
+    "name": "verify_ipfs_hash",
     "inputs": [
       {
         "name": "ipfs_hash",
@@ -157,8 +165,8 @@
     "state_mutability": "view"
   },
   {
-    "name": "purchase_dataset",
     "type": "function",
+    "name": "purchase_dataset",
     "inputs": [
       {
         "name": "dataset_id",
@@ -169,78 +177,126 @@
     "state_mutability": "external"
   },
   {
-    "kind": "struct",
+    "type": "function",
+    "name": "list_for_sale",
+    "inputs": [
+      {
+        "name": "dataset_id",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "new_price",
+        "type": "core::integer::u256"
+      }
+    ],
+    "outputs": [],
+    "state_mutability": "external"
+  },
+  {
+    "type": "event",
     "name": "ainest_contract::ainest_registry::AInestRegistry::DatasetRegistered",
-    "type": "event",
-    "members": [
-      {
-        "kind": "data",
-        "name": "dataset_id",
-        "type": "core::integer::u256"
-      },
-      {
-        "kind": "data",
-        "name": "owner",
-        "type": "core::starknet::contract_address::ContractAddress"
-      },
-      {
-        "kind": "data",
-        "name": "name",
-        "type": "core::byte_array::ByteArray"
-      },
-      {
-        "kind": "data",
-        "name": "ipfs_hash",
-        "type": "core::felt252"
-      },
-      {
-        "kind": "data",
-        "name": "price",
-        "type": "core::integer::u256"
-      },
-      {
-        "kind": "data",
-        "name": "category",
-        "type": "core::byte_array::ByteArray"
-      }
-    ]
-  },
-  {
     "kind": "struct",
-    "name": "ainest_contract::ainest_registry::AInestRegistry::DatasetTransferred",
-    "type": "event",
     "members": [
       {
-        "kind": "data",
         "name": "dataset_id",
-        "type": "core::integer::u256"
+        "type": "core::integer::u256",
+        "kind": "data"
       },
       {
-        "kind": "data",
-        "name": "from",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "name": "owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
       },
       {
-        "kind": "data",
-        "name": "to",
-        "type": "core::starknet::contract_address::ContractAddress"
+        "name": "originalOwner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "name",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "ipfs_hash",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "price",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "category",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
       }
     ]
   },
   {
-    "kind": "enum",
-    "name": "ainest_contract::ainest_registry::AInestRegistry::Event",
     "type": "event",
+    "name": "ainest_contract::ainest_registry::AInestRegistry::DatasetTransferred",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "dataset_id",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "from",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "to",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ainest_contract::ainest_registry::AInestRegistry::DatasetRelisted",
+    "kind": "struct",
+    "members": [
+      {
+        "name": "dataset_id",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "owner",
+        "type": "core::starknet::contract_address::ContractAddress",
+        "kind": "data"
+      },
+      {
+        "name": "price",
+        "type": "core::integer::u256",
+        "kind": "data"
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "ainest_contract::ainest_registry::AInestRegistry::Event",
+    "kind": "enum",
     "variants": [
       {
-        "kind": "nested",
         "name": "DatasetRegistered",
-        "type": "ainest_contract::ainest_registry::AInestRegistry::DatasetRegistered"
+        "type": "ainest_contract::ainest_registry::AInestRegistry::DatasetRegistered",
+        "kind": "nested"
       },
       {
-        "kind": "nested",
         "name": "DatasetTransferred",
-        "type": "ainest_contract::ainest_registry::AInestRegistry::DatasetTransferred"
+        "type": "ainest_contract::ainest_registry::AInestRegistry::DatasetTransferred",
+        "kind": "nested"
+      },
+      {
+        "name": "DatasetRelisted",
+        "type": "ainest_contract::ainest_registry::AInestRegistry::DatasetRelisted",
+        "kind": "nested"
       }
     ]
   }

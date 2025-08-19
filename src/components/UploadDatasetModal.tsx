@@ -33,7 +33,7 @@ import {
 
 // Mock IPFS upload (simulated hash)
 async function mockUploadToIPFS(file: File) {
-  return "QmMockHash12345678"; // Static CID for testing
+  return "QmMockHash12345678awer899uiuiu8922"; // Static CID for testing
 }
 interface UploadDatasetModalProps {
   isOpen: boolean;
@@ -133,18 +133,14 @@ export const UploadDatasetModal = ({
       // Positional args assuming Cairo fn signature is:
       // fn register_dataset(name: ByteArray, ipfs_hash: felt252, price: u256, category: ByteArray)
 
-
-
-
       // Using positional arguments
       const call = contract?.populate("register_dataset", [
-        formData.name,           // name: ByteArray
-        ipfsHashFelt,           // ipfs_hash: felt252  
-        priceU256.low,          // price.low: u128
-        priceU256.high,         // price.high: u128
-        formData.category       // category: ByteArray
+        formData.name, // name: ByteArray
+        ipfsHashFelt, // ipfs_hash: felt252
+        { low: priceU256.low, high: priceU256.high }, // price.high: u128
+        formData.category, // category: ByteArray
       ]);
-      
+
       if (!call) {
         throw new Error("Failed to create contract call");
       }

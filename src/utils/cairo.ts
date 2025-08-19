@@ -184,3 +184,20 @@ export function parseUint256FromIntegerString(amountStr: string) {
   const high = wei >> 128n;
   return { low: low.toString(), high: high.toString() };
 }
+
+export const toU256 = (n: number | bigint) => ({
+  low: BigInt(n) & ((1n << 128n) - 1n),
+  high: BigInt(n) >> 128n,
+});
+export const fromU256 = (u: any): bigint => {
+  if (!u) return 0n;
+  if (typeof u === "bigint") return u;
+  if (typeof u === "string") return BigInt(u);
+  if (Array.isArray(u) && u.length >= 2) {
+    return (BigInt(u[1]) << 128n) + BigInt(u[0]);
+  }
+  if ("low" in u && "high" in u) {
+    return (BigInt(u.high) << 128n) + BigInt(u.low);
+  }
+  return 0n;
+};

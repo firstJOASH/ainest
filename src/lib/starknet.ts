@@ -16,6 +16,8 @@ export interface Dataset {
   price: bigint;
   id: bigint;
   category: string;
+  originalOwner: string;
+  listed: boolean;
 }
 
 export interface UserStats {

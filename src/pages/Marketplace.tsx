@@ -9,8 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Search, Grid, List } from "lucide-react";
 import { useAccount, useContract } from "@starknet-react/core";
 import AINEST_ABI from "@/utils/AINEST_ABI.json";
-import { AINEST_ADDRESS, STRK_ADDRESS } from "@/utils/contracts";
-import { decodeByteArray, ipfsHashToFelt252 } from "@/utils/cairo";
+import { AINEST_ADDRESS } from "@/utils/contracts";
+import { decodeByteArray } from "@/utils/cairo";
 
 /** Helpers for u256 <-> bigint */
 const toU256 = (n: number | bigint) => ({
@@ -30,7 +30,6 @@ const fromU256 = (u: any): bigint => {
   return 0n;
 };
 
-/** VERY simple fallback for ByteArray -> string (shows a friendly placeholder) */
 const safeName = (id: number) => `Dataset #${id}`;
 
 export const Marketplace = () => {
@@ -55,103 +54,84 @@ export const Marketplace = () => {
 
   const { account } = useAccount();
 
-  // Create a Contract instance (uses account when connected, otherwise provider)
   const { contract } = useContract({
-    abi: AINEST_ABI as any,
+    abi: AINEST_ABI as Array<any>,
     address: AINEST_ADDRESS,
   });
 
-  // Load all datasets
-  useEffect(() => {
-    const load = async () => {
-      if (!contract) return;
+  // Define load function outside useEffect to make it reusable
+  const load = async () => {
+    if (!contract) return;
 
-      setLoading(true);
-      try {
-        // 1) read dataset count
-        const countRes: any = await (contract as any).get_dataset_count();
-        const count = Number(fromU256(countRes));
+    setLoading(true);
+    try {
+      const countRes: any = await (contract as any).get_dataset_count();
+      const count = Number(fromU256(countRes));
 
-        const results: Dataset[] = [];
+      const results: Dataset[] = [];
 
-        // 2) read each dataset
-        for (let id = 1; id <= count; id++) {
-          try {
-            console.log(`\n=== Loading Dataset ${id} ===`);
-            const d: any = await (contract as any).get_dataset(toU256(id));
-            console.log(`Dataset ${id} full contract response:`, d);
+      for (let id = 1; id <= count; id++) {
+        try {
+          const d: any = await (contract as any).get_dataset(toU256(id));
+          console.log("Raw dataset response:", d);
 
-            const owner = d.owner ?? d[0];
-            const ipfs_hash = d.ipfs_hash ?? d[2];
-            const priceU256 = d.price ?? d[3];
-            const category = d.category ?? d[4];
+          const ownerRaw = d.owner ?? d[0];
+          const rawNameData = d.name ?? d[1];
+          const ipfs_hash = d.ipfs_hash ?? d[2];
+          const priceU256 = d.price ?? d[3];
+          const category = d.category ?? d[4];
+          const originalOwner = d.originalOwner ?? d[5];
+          const isListed = d.listed ?? d[6];
 
-            const priceRaw = fromU256(priceU256); // Raw bigint value
+          const owner =
+            typeof ownerRaw === "string"
+              ? ownerRaw
+              : `0x${BigInt(ownerRaw).toString(16)}`;
 
-            // Debug the raw name data from contract
-            const rawNameData = d.name ?? d[1];
-            console.log(`Dataset ${id} raw name data:`, rawNameData);
-            console.log(
-              `Dataset ${id} raw name data type:`,
-              typeof rawNameData
-            );
+          const name =
+            typeof rawNameData === "string" && rawNameData.trim() !== ""
+              ? rawNameData.trim()
+              : decodeByteArray(rawNameData) || safeName(id);
 
-            let name: string;
+          const categoryStr = decodeByteArray(category) || "Uncategorized";
+          const priceRaw = fromU256(priceU256);
 
-            // Since it’s already a string, use it directly
-            if (typeof rawNameData === "string" && rawNameData.trim() !== "") {
-              name = rawNameData.trim();
-              console.log(`Dataset ${id} using raw string name: "${name}"`);
-            } else {
-              // Only decode if it's not a string (i.e., it's a ByteArray)
-              const decodedName = decodeByteArray(rawNameData);
-              console.log(`Dataset ${id} decoded name: "${decodedName}"`);
-              name = decodedName || safeName(id);
-              console.log(
-                `Dataset ${id} using decoded/fallback name: "${name}"`
-              );
-            }
+          const datasetId = BigInt(id);
+          console.log(datasetId);
 
-            const categoryStr = decodeByteArray(category) || "Uncategorized";
-            console.log(`Dataset ${id} category: "${categoryStr}"`);
+          const datasetObj: Dataset = {
+            id: datasetId,
+            name,
+            owner,
+            originalOwner,
+            ipfs_hash:
+              typeof ipfs_hash === "string"
+                ? ipfs_hash
+                : `0x${BigInt(ipfs_hash).toString(16)}`,
+            price: priceRaw,
+            category: categoryStr as DatasetCategory,
+            listed: isListed,
+          };
 
-            const datasetObj = {
-              id: BigInt(id),
-              name,
-              owner:
-                typeof owner === "string"
-                  ? owner
-                  : `0x${BigInt(owner).toString(16)}`,
-              ipfs_hash:
-                typeof ipfs_hash === "string"
-                  ? ipfs_hash
-                  : `0x${BigInt(ipfs_hash).toString(16)}`,
-              price: priceRaw, // Use raw bigint for calculations
-              category: categoryStr as DatasetCategory,
-            };
-
-            console.log(`Dataset ${id} final object:`, datasetObj);
-            console.log(`=== End Dataset ${id} ===\n`);
-
-            results.push(datasetObj);
-          } catch (e) {
-            // Skip missing IDs gracefully
-            console.log(`get_dataset(${id}) failed`, e);
-          }
+          results.push(datasetObj);
+        } catch (e) {
+          console.log(`get_dataset(${id}) failed`, e);
         }
-        console.log("Fetched datasets:", results);
-        setContractDatasets(results);
-      } catch (e) {
-        console.error("Failed to load datasets:", e);
-      } finally {
-        setLoading(false);
       }
-    };
 
+      setContractDatasets(results);
+    } catch (e) {
+      console.error("Failed to load datasets:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     load();
-  }, [contract, account, setLoading]);
+  }, [contract, account, setLoading, setContractDatasets]);
 
-  // Filter and sort for UI
+  // Only show datasets that are still for sale
   const filteredDatasets = contractDatasets
     .filter((dataset) => {
       const matchesCategory =
@@ -159,65 +139,23 @@ export const Marketplace = () => {
       const matchesSearch = dataset.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-      return matchesCategory && matchesSearch;
+      // Convert originalOwner to string if not already
+      const originalOwnerStr =
+        typeof dataset.originalOwner === "string"
+          ? dataset.originalOwner
+          : `0x${BigInt(dataset.originalOwner).toString(16)}`;
+      const isForSale =
+        dataset.owner.toLowerCase() === originalOwnerStr.toLowerCase() &&
+        dataset.listed === true;
+      // console.log("Dataset:", dataset, "Is For Sale:", isForSale);
+      return matchesCategory && matchesSearch && isForSale;
     })
     .sort((a, b) => {
       if (sortBy === "price") return Number(a.price - b.price);
       if (sortBy === "newest") return Number(b.id - a.id);
-      return 0; // TODO: Implement popularity
+      return 0;
     });
 
-  // Implement purchase
-  const handleDatasetPurchase = async (dataset: Dataset) => {
-    if (!account || !contract) {
-      console.log("Wallet not connected or contract not loaded");
-      return;
-    }
-
-    console.log("Initiating purchase for dataset:", dataset);
-    try {
-      const priceInWei = dataset.price; // Use raw bigint
-      console.log("Price in Wei:", priceInWei.toString());
-
-      // Approve STRK spending
-      const approveCall = {
-        contractAddress: STRK_ADDRESS,
-        entrypoint: "approve",
-        calldata: callData.compile({
-          spender: AINEST_ADDRESS,
-          amount: priceInWei.toString(),
-        }),
-      };
-      console.log("Approve call:", approveCall);
-
-      // Purchase dataset
-      const purchaseCall = {
-        contractAddress: AINEST_ADDRESS,
-        entrypoint: "purchase_dataset",
-        calldata: [dataset.id.toString(), "0"], // Adjust calldata based on ABI
-      };
-      console.log("Purchase call:", purchaseCall);
-
-      const calls = [approveCall, purchaseCall];
-      console.log("Executing transactions:", calls);
-
-      const tx = await account.execute(calls, {
-        maxFee: 0n, // Let the wallet estimate fee (adjust if needed)
-      });
-      console.log("Transaction sent, hash:", tx.transaction_hash);
-
-      // Wait for transaction receipt (optional, adjust timeout)
-      const receipt = await tx.wait({ timeout: 30000 }); // 30 seconds timeout
-      console.log("Transaction confirmed, receipt:", receipt);
-    } catch (e) {
-      console.error("Purchase failed:", e);
-      if (e instanceof Error) {
-        console.error("Error details:", e.message, e.stack);
-      }
-    }
-  };
-
-  // Animations
   useEffect(() => {
     if (mainRef.current) animatePageEnter(mainRef.current);
   }, [animatePageEnter]);
@@ -319,8 +257,10 @@ export const Marketplace = () => {
               <DatasetCard
                 key={dataset.id.toString()}
                 dataset={dataset}
-                onView={() => console.log("View", dataset)}
-                onPurchase={() => handleDatasetPurchase(dataset)}
+                onView={() => {}}
+                onPurchase={async () => {
+                  await load(); // Now accessible
+                }}
               />
             ))}
           </div>

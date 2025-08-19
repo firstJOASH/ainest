@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 import { useGSAP } from "@/hooks/useGSAP";
-import { Dataset } from "@/lib/starknet";
+import { Dataset, DatasetCategory } from "@/lib/starknet";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DatasetPreviewModal } from "@/components/DatasetPreviewModal";
@@ -8,7 +8,15 @@ import { Download, Eye, User, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { STRK_ADDRESS, AINEST_ADDRESS } from "@/utils/contracts";
 import { uint256 } from "starknet";
-import { useAccount, useSendTransaction } from "@starknet-react/core";
+import {
+  useAccount,
+  useSendTransaction,
+  useContract,
+} from "@starknet-react/core";
+import { useAppStore } from "@/stores/useAppStore";
+import AINEST_ABI from "@/utils/AINEST_ABI.json";
+import STRK_ABI from "@/utils/STRK_ABI.json";
+import { fromU256, toU256, decodeByteArray } from "@/utils/cairo";
 
 interface DatasetCardProps {
   dataset: Dataset;
@@ -27,23 +35,24 @@ export const DatasetCard = ({
   const { toast } = useToast();
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const { setContractDatasets, contractDatasets } = useAppStore();
 
-  // Initialize useSendTransaction (docs show you can pass calls initially;
-  // we pass undefined and override at send time).
-  const {
-    send, // quick fire-and-forget send (void)
-    sendAsync, // promise-based send that returns tx result
-    isPending,
-    isSuccess,
-    isError,
-    error,
-  } = useSendTransaction({ calls: undefined });
+  const { contract: strkContract } = useContract({
+    abi: STRK_ABI as any, // Replace with STRK_ABI if available
+    address: STRK_ADDRESS,
+  });
+  const { contract: ainestContract } = useContract({
+    abi: AINEST_ABI as any,
+    address: AINEST_ADDRESS,
+  });
+
+  const { sendAsync, isPending, isSuccess, isError, error, reset } =
+    useSendTransaction({ calls: undefined });
 
   const formatAddress = (addr: string) =>
     `${addr.slice(0, 6)}...${addr.slice(-4)}`;
 
   const formatPrice = (price: bigint) => {
-    // Convert raw wei to STRK for display
     const priceStrk = Number(price) / 1e18;
     if (priceStrk === 0) return "Free";
     if (priceStrk < 1) return `${priceStrk.toFixed(18)} STRK`;
@@ -64,87 +73,55 @@ export const DatasetCard = ({
     onView?.(dataset);
   };
 
-  // const handlePurchase = async () => {
-  //   if (!isConnected || !STRK_ADDRESS || !AINEST_ADDRESS) {
-  //     toast({
-  //       title: "Wallet or Contract Issue",
-  //       description:
-  //         "Please connect your Starknet wallet and ensure contracts are loaded",
-  //       variant: "destructive",
-  //     });
-  //     return;
-  //   }
+  const reloadDatasets = async () => {
+    if (!ainestContract) return;
+    const countRes: any = await ainestContract.get_dataset_count();
+    const count = Number(fromU256(countRes));
+    const results: Dataset[] = [];
+    for (let id = 1; id <= count; id++) {
+      try {
+        const d: any = await ainestContract.get_dataset(toU256(id));
+        const ownerRaw = d.owner ?? d[0];
+        const rawNameData = d.name ?? d[1];
+        const ipfs_hash = d.ipfs_hash ?? d[2];
+        const priceU256 = d.price ?? d[3];
+        const category = d.category ?? d[4];
+        const originalOwner = d.originalOwner ?? d[5];
+        const isListed = d.listed ?? d[6];
 
-  //   setIsPurchasing(true);
-  //   try {
-  //     // Approve AInestRegistry to spend the price
-  //     const priceU256 = uint256.bnToUint256(dataset.price);
-  //     const datasetIdU256 = uint256.bnToUint256(dataset.id);
+        const owner =
+          typeof ownerRaw === "string"
+            ? ownerRaw
+            : `0x${BigInt(ownerRaw).toString(16)}`;
+        const name =
+          typeof rawNameData === "string" && rawNameData.trim() !== ""
+            ? rawNameData.trim()
+            : decodeByteArray(rawNameData) || `Dataset #${id}`;
+        const categoryStr = decodeByteArray(category) || "Uncategorized";
+        const priceRaw = fromU256(priceU256);
 
-  //     // combine low/high into BigInt
-  //     function u256ToBigInt(u: {
-  //       low: string | number | bigint;
-  //       high: string | number | bigint;
-  //     }) {
-  //       const low = BigInt(u.low);
-  //       const high = BigInt(u.high);
-  //       return (high << 128n) + low;
-  //     }
-
-  //     const storedPrice = u256ToBigInt(priceU256);
-  //     console.log("stored price (wei):", storedPrice.toString());
-  //     console.log("stored price (STRK):", Number(storedPrice) / 1e18);
-
-  //     const approveCall = {
-  //       contractAddress: STRK_ADDRESS,
-  //       entrypoint: "approve",
-  //       calldata: [AINEST_ADDRESS, priceU256.low, priceU256.high],
-  //     };
-
-  //     if (!approveCall) throw new Error("Approve call preparation failed");
-
-  //     // Send approval transaction and wait for confirmation
-  //     toast({
-  //       title: "Requesting approval...",
-  //       description: "Please confirm in your wallet",
-  //     });
-  //     await sendAsync([approveCall]);
-  //     await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2s for approval to propagate (adjust as needed)
-
-  //     // Purchase dataset
-  //     const purchaseCall = {
-  //       contractAddress: AINEST_ADDRESS,
-  //       entrypoint: "purchase_dataset",
-  //       calldata: [datasetIdU256.low, datasetIdU256.high],
-  //     };
-  //     if (!purchaseCall) throw new Error("Purchase call preparation failed");
-
-  //     toast({
-  //       title: "Purchasing dataset...",
-  //       description: "Please confirm the transaction",
-  //     });
-  //     const txResult = await sendAsync([purchaseCall]);
-  //     console.log("Purchase TX result:", txResult);
-
-  //     if (isSuccess) {
-  //       toast({ title: "Purchase successful!" });
-  //       onPurchase?.(dataset);
-  //     }
-  //   } catch (err: any) {
-  //     console.error("Purchase failed:", err);
-  //     toast({
-  //       title: "Purchase failed",
-  //       description: err?.message ?? "An unexpected error occurred",
-  //       variant: "destructive",
-  //     });
-  //   } finally {
-  //     setIsPurchasing(false);
-  //     if (isError) reset();
-  //   }
-  // };
+        results.push({
+          id: BigInt(id),
+          name,
+          owner,
+          originalOwner,
+          ipfs_hash:
+            typeof ipfs_hash === "string"
+              ? ipfs_hash
+              : `0x${BigInt(ipfs_hash).toString(16)}`,
+          price: priceRaw,
+          category: categoryStr as DatasetCategory,
+          listed: isListed,
+        });
+      } catch (e) {
+        console.log(`get_dataset(${id}) failed`, e);
+      }
+    }
+    setContractDatasets(results);
+  };
 
   const handlePurchase = async () => {
-    if (!isConnected || !STRK_ADDRESS || !AINEST_ADDRESS) {
+    if (!isConnected || !address || !strkContract || !ainestContract) {
       toast({
         title: "Wallet or Contract Issue",
         description:
@@ -154,63 +131,64 @@ export const DatasetCard = ({
       return;
     }
 
-// Custom reset function to clear states
-const resetPurchaseState = () => {
-  setIsPurchasing(false);
-};
     setIsPurchasing(true);
     try {
-      // Convert dataset price to u256 for the transaction
       const priceU256 = uint256.bnToUint256(dataset.price);
       const datasetIdU256 = uint256.bnToUint256(dataset.id);
 
-      console.log("Price (wei):", dataset.price.toString());
-      console.log("Price (STRK):", Number(dataset.price) / 1e18);
-
-      // Approve AInest contract to spend STRK
       const approveCall = {
         contractAddress: STRK_ADDRESS,
         entrypoint: "approve",
         calldata: [AINEST_ADDRESS, priceU256.low, priceU256.high],
       };
-      await sendAsync([approveCall]);
-      toast({ title: "Approval requested. Confirm in wallet." });
+      if (!approveCall) throw new Error("Approve call preparation failed");
 
-      // Purchase dataset
+      toast({
+        title: "Requesting approval...",
+        description: "Confirm in wallet",
+      });
+      await sendAsync([approveCall]);
+      await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait for approval
+
       const purchaseCall = {
         contractAddress: AINEST_ADDRESS,
         entrypoint: "purchase_dataset",
         calldata: [datasetIdU256.low, datasetIdU256.high],
       };
+      if (!purchaseCall) throw new Error("Purchase call preparation failed");
+
+      toast({
+        title: "Purchasing dataset...",
+        description: "Confirm transaction",
+      });
       const txResult = await sendAsync([purchaseCall]);
       console.log("Purchase TX result:", txResult);
 
-      toast({ title: "Purchase successful!" });
-      onPurchase?.(dataset);
-    }catch (err: any) {
+      if (isSuccess) {
+        setTimeout(() => toast({ title: "Purchase successful!" }), 5000);
+        await reloadDatasets(); // Refresh dataset list
+        onPurchase?.(dataset);
+      }
+    } catch (err: any) {
       console.error("Purchase failed:", err);
-      
-      // Enhanced error messages based on common issues
       let errorMessage = "An unexpected error occurred";
-      
       if (err?.message?.includes("insufficient")) {
-        errorMessage = "Insufficient STRK balance. Please check your wallet balance.";
-      } else if (err?.message?.includes("not executed") || err?.message?.includes("Unknown error")) {
-        errorMessage = "Transaction failed. This could be due to insufficient balance, gas issues, or the dataset is no longer available.";
+        errorMessage = "Insufficient STRK balance.";
+      } else if (err?.message?.includes("not executed")) {
+        errorMessage = "Transaction failed due to gas or availability.";
       } else if (err?.message?.includes("rejected")) {
-        errorMessage = "Transaction was rejected in wallet.";
-      } else if (err?.message?.includes("timeout")) {
-        errorMessage = "Transaction timed out. Please try again.";
+        errorMessage = "Transaction rejected in wallet.";
       } else if (err?.message) {
         errorMessage = err.message;
       }
       toast({
         title: "Purchase failed",
         description: errorMessage,
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
-resetPurchaseState();
+      setIsPurchasing(false);
+      if (isError) reset();
     }
   };
 
@@ -285,8 +263,7 @@ resetPurchaseState();
         onPurchase={handlePurchase}
       />
 
-      {/* Optional inline error for debugging */}
-      {error && (
+      {isError && error && (
         <p className="text-xs text-red-500 mt-2">Error: {error.message}</p>
       )}
     </div>
