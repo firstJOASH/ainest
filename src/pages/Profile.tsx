@@ -457,12 +457,6 @@ export const Profile = () => {
                 {myOnSale.map((dataset) => (
                   <div key={dataset.id.toString()} className="space-y-2">
                     <DatasetCard dataset={dataset} onView={() => {}} />
-                    <Button
-                      size="sm"
-                      onClick={() => handleRelist(dataset.id.toString())}
-                    >
-                      Re-list
-                    </Button>
                   </div>
                 ))}
               </div>
@@ -480,11 +474,19 @@ export const Profile = () => {
             {myPurchased.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myPurchased.map((dataset) => (
-                  <DatasetCard
-                    key={dataset.id.toString()}
-                    dataset={dataset}
-                    onView={() => {}}
-                  />
+                  <div key={dataset.id.toString()} className="space-y-2">
+                    <DatasetCard
+                      key={dataset.id.toString()}
+                      dataset={dataset}
+                      onView={() => {}}
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => handleRelist(dataset.id.toString())}
+                    >
+                      Re-list
+                    </Button>
+                  </div>
                 ))}
               </div>
             ) : (
@@ -499,7 +501,12 @@ export const Profile = () => {
             {mySold.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {mySold.map((dataset) => (
-                  <DatasetCard key={dataset.id.toString()} dataset={dataset} />
+                  <div key={dataset.id.toString()} className="space-y-2">
+                    <DatasetCard
+                      key={dataset.id.toString()}
+                      dataset={dataset}
+                    />
+                  </div>
                 ))}
               </div>
             ) : (
