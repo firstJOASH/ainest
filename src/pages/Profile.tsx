@@ -143,7 +143,8 @@ export const Profile = () => {
       contractDatasets.filter((d) => {
         if (
           d?.owner === myAddr.toLowerCase().replace(/^0x0/, "0x") &&
-          d?.originalOwner !== myAddr.toLowerCase().replace(/^0x0/, "0x")
+          d?.originalOwner !== myAddr.toLowerCase().replace(/^0x0/, "0x") &&
+          d?.listed === false
         ) {
           return d;
         }
@@ -212,9 +213,7 @@ export const Profile = () => {
             const to = event.data[2];
             activity.push({
               id: pageIndex * 20 + eventIndex,
-              action: `Transferred dataset #${Number(event.data[0])} from ${
-                event.data[1]
-              } to ${event.data[2]}`,
+              action: `Transferred dataset #${dataset_id} from ${from} to ${to}`,
               timestamp: new Date().toISOString(), // Replace with block timestamp
             });
           }
@@ -225,9 +224,9 @@ export const Profile = () => {
           const to = page.data[2];
           activity.push({
             id: pageIndex * 20,
-            action: `Transferred dataset #${Number(page.data[0])} from ${
-              page.data[1]
-            } to ${page.data[2]}`,
+            action: `Transferred dataset #${Number(
+              dataset_id
+            )} from ${from} to ${to}`,
             timestamp: new Date().toISOString(), // Replace with block timestamp
           });
         }
@@ -294,7 +293,7 @@ export const Profile = () => {
   const handleRelist = async (datasetId: string) => {
     if (!contract) return;
     try {
-      let price;
+      const price = 1000000000000000000;
       const newPrice = toU256(price); // 1 STRK in wei (adjust as needed)
 
       const call = {

@@ -73,7 +73,6 @@ export const Marketplace = () => {
       for (let id = 1; id <= count; id++) {
         try {
           const d: any = await (contract as any).get_dataset(toU256(id));
-          console.log("Raw dataset response:", d);
 
           const ownerRaw = d.owner ?? d[0];
           const rawNameData = d.name ?? d[1];
@@ -97,7 +96,6 @@ export const Marketplace = () => {
           const priceRaw = fromU256(priceU256);
 
           const datasetId = BigInt(id);
-          console.log(datasetId);
 
           const datasetObj: Dataset = {
             id: datasetId,
@@ -147,7 +145,6 @@ export const Marketplace = () => {
       const isForSale =
         dataset.owner.toLowerCase() === originalOwnerStr.toLowerCase() &&
         dataset.listed === true;
-      // console.log("Dataset:", dataset, "Is For Sale:", isForSale);
       return matchesCategory && matchesSearch && isForSale;
     })
     .sort((a, b) => {
