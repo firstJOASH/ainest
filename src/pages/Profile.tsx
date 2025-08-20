@@ -8,7 +8,7 @@ import {
 } from "@starknet-react/core";
 import { useAppStore } from "@/stores/useAppStore";
 import { useGSAP } from "@/hooks/useGSAP";
-// import { Dataset, DatasetCategory } from "@/lib/starknet";
+import { Dataset, DatasetCategory } from "@/lib/starknet";
 import { DatasetCard } from "@/components/DatasetCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,14 +16,20 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Wallet, Copy, ExternalLink, History } from "lucide-react";
 import AINEST_ABI from "@/utils/AINEST_ABI.json";
 import { AINEST_ADDRESS } from "@/utils/contracts";
-import { toU256, fromU256 } from "@/utils/cairo";
+import { toU256, fromU256, decodeByteArray } from "@/utils/cairo";
 import { BlockTag } from "starknet";
 
 export const Profile = () => {
   const profileRef = useRef<HTMLDivElement>(null);
   const { animatePageEnter } = useGSAP();
-  const { address, isConnected } = useAccount();
-  const { contractDatasets, setUploadModalOpen } = useAppStore();
+  const { address, isConnected, account } = useAccount();
+  const {
+    contractDatasets,
+    setUploadModalOpen,
+    isLoading,
+    setLoading,
+    setContractDatasets,
+  } = useAppStore();
   const { contract } = useContract({
     abi: AINEST_ABI as any,
     address: AINEST_ADDRESS,
@@ -32,20 +38,90 @@ export const Profile = () => {
     calls: undefined,
   });
   const { toast } = useToast();
+  const safeName = (id: number) => `Dataset #${id}`;
 
   const myAddr = (address || "").toLowerCase();
   const [activeTab, setActiveTab] = useState<
     "onSale" | "purchased" | "sold" | "activity"
   >("onSale");
-  const originalOwnerStr = function (dataset: any) {
-    return typeof dataset.originalOwner === "string"
-      ? dataset.originalOwner
-      : `0x${BigInt(dataset.originalOwner).toString(16)}`;
+
+  const load = async () => {
+    if (!contract) return;
+
+    setLoading(true);
+    try {
+      const countRes: any = await (contract as any).get_dataset_count();
+      const count = Number(fromU256(countRes));
+
+      const results: Dataset[] = [];
+
+      for (let id = 1; id <= count; id++) {
+        try {
+          const d: any = await (contract as any).get_dataset(toU256(id));
+
+          const ownerRaw = d.owner ?? d[0];
+          const rawNameData = d.name ?? d[1];
+          const ipfs_hash = d.ipfs_hash ?? d[2];
+          const priceU256 = d.price ?? d[3];
+          const category = d.category ?? d[4];
+          const originalOwner = d.originalOwner ?? d[5];
+          const isListed = d.listed ?? d[6];
+
+          const owner =
+            typeof ownerRaw === "string"
+              ? ownerRaw
+              : `0x${BigInt(ownerRaw).toString(16)}`;
+
+          const name =
+            typeof rawNameData === "string" && rawNameData.trim() !== ""
+              ? rawNameData.trim()
+              : decodeByteArray(rawNameData) || safeName(id);
+
+          const categoryStr = decodeByteArray(category) || "Uncategorized";
+          const priceRaw = fromU256(priceU256);
+
+          const datasetId = BigInt(id);
+
+          const datasetObj: Dataset = {
+            id: datasetId,
+            name,
+            owner,
+            originalOwner,
+            ipfs_hash:
+              typeof ipfs_hash === "string"
+                ? ipfs_hash
+                : `0x${BigInt(ipfs_hash).toString(16)}`,
+            price: priceRaw,
+            category: categoryStr as DatasetCategory,
+            listed: isListed,
+          };
+
+          results.push(datasetObj);
+        } catch (e) {
+          console.log(`get_dataset(${id}) failed`, e);
+        }
+      }
+
+      setContractDatasets(results);
+    } catch (e) {
+      console.error("Failed to load datasets:", e);
+    } finally {
+      setLoading(false);
+    }
   };
+
+  useEffect(() => {
+    load();
+  }, [contract, account, setLoading, setContractDatasets]);
 
   // Owned by me (current owner)
   const myOwned = useMemo(
-    () => contractDatasets.filter((d) => d.owner?.toLowerCase() === myAddr),
+    () =>
+      contractDatasets.filter((d) => {
+        if (d?.owner === myAddr.toLowerCase().replace(/^0x0/, "0x")) {
+          return d;
+        }
+      }),
     [contractDatasets, myAddr]
   );
 
@@ -53,12 +129,10 @@ export const Profile = () => {
   const myOnSale = useMemo(
     () =>
       contractDatasets.filter((d) => {
-        const originalOwnerFormatted = originalOwnerStr(d);
-        return (
-          originalOwnerFormatted.toLowerCase() === myAddr &&
-          d.owner?.toLowerCase() === myAddr &&
-          d.listed
-        );
+        const normalizedMyAddr = myAddr.toLowerCase().replace(/^0x0/, "0x");
+        if (d.listed === true && d?.owner === normalizedMyAddr) {
+          return d;
+        }
       }),
     [contractDatasets, myAddr]
   );
@@ -67,11 +141,12 @@ export const Profile = () => {
   const myPurchased = useMemo(
     () =>
       contractDatasets.filter((d) => {
-        const originalOwnerFormatted = originalOwnerStr(d);
-        return (
-          d.owner?.toLowerCase() === myAddr &&
-          originalOwnerFormatted?.toLowerCase() !== myAddr
-        );
+        if (
+          d?.owner === myAddr.toLowerCase().replace(/^0x0/, "0x") &&
+          d?.originalOwner !== myAddr.toLowerCase().replace(/^0x0/, "0x")
+        ) {
+          return d;
+        }
       }),
     [contractDatasets, myAddr]
   );
@@ -80,11 +155,12 @@ export const Profile = () => {
   const mySold = useMemo(
     () =>
       contractDatasets.filter((d) => {
-        const originalOwnerFormatted = originalOwnerStr(d);
-        return (
-          originalOwnerFormatted?.toLowerCase() === myAddr &&
-          d.owner?.toLowerCase() !== myAddr
-        );
+        if (
+          d?.originalOwner === myAddr.toLowerCase().replace(/^0x0/, "0x") &&
+          d?.owner !== myAddr.toLowerCase().replace(/^0x0/, "0x")
+        ) {
+          return d;
+        }
       }),
     [contractDatasets, myAddr]
   );
@@ -122,6 +198,7 @@ export const Profile = () => {
     refetchInterval: 30000,
   });
 
+  // Update recent activity when events change
   useEffect(() => {
     const activity: { id: number; action: string; timestamp: string }[] = [];
 
@@ -182,7 +259,7 @@ export const Profile = () => {
             id: pageIndex * 20,
             action: `Relisted dataset #${Number(page.data[0])} by ${
               page.data[1]
-            } for ${Number(page.data[2])}`,
+            } for ${Number(event.data[2])}`,
             timestamp: new Date().toISOString(), // Replace with block timestamp
           });
         }
@@ -233,11 +310,12 @@ export const Profile = () => {
         throw new Error("Failed to create contract call");
       }
 
-      console.log("Contract call:", call);
-      // 5) Send
       send([call]);
 
-      setTimeout(() => toast({ title: "Dataset relisted!" }), 5000);
+      setTimeout(() => {
+        toast({ title: "Dataset relisted!" });
+        load(); // Reload datasets after relisting
+      }, 5000);
     } catch (err) {
       console.error(err);
 

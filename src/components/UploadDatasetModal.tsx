@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   useAccount,
   useContract,
@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useAppStore } from "@/stores/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,7 +34,7 @@ import {
 
 // Mock IPFS upload (simulated hash)
 async function mockUploadToIPFS(file: File) {
-  return "QmMockHash12345678awer899uiuiu8922"; // Static CID for testing
+  return "QmMockHash12345678a90uchewer899uiuiu892tyty2"; // Static CID for testing
 }
 interface UploadDatasetModalProps {
   isOpen: boolean;
@@ -63,6 +64,9 @@ export const UploadDatasetModal = ({
   const { send, reset, isPending, isError } = useSendTransaction({
     calls: undefined,
   });
+
+  const addDataset = useAppStore((state) => state.addDataset);
+  const setContractDatasets = useAppStore((state) => state.setContractDatasets);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,7 +153,31 @@ export const UploadDatasetModal = ({
       // 5) Send
       send([call]);
 
-      toast({ title: "Dataset uploaded successfully!" });
+      // Build new dataset object (mock since contract doesn't return directly)
+      const newDataset = {
+        id: BigInt(Date.now().toString()), // temporary unique ID
+        name: formData.name,
+        description: formData.description,
+        ipfs_hash: ipfsHashFelt,
+        price: BigInt(formData.price),
+        category: formData.category,
+        listed: true,
+        originalOwner: account.address,
+        owner: account.address,
+      };
+
+      // Push into Zustand store
+      addDataset(newDataset);
+      setContractDatasets([
+        newDataset,
+        ...useAppStore.getState().contractDatasets,
+      ]);
+
+      if (send) {
+        setTimeout(() => {
+          toast({ title: "Dataset uploaded successfully!" });
+        }, 5000);
+      }
       onClose();
       setFormData({
         name: "",

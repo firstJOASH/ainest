@@ -63,6 +63,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
   contractDatasets: [],
   setContractDatasets: (datasets) => set({ contractDatasets: datasets }),
+  addContractDataset: (dataset: Dataset) =>
+    set((state) => ({
+      contractDatasets: [dataset, ...state.contractDatasets],
+    })),
 
   // Filters
   selectedCategory: "All",
