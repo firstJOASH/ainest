@@ -5,6 +5,7 @@ import {
   useContract,
   useSendTransaction,
   useEvents,
+  useBlock,
 } from "@starknet-react/core";
 import { useAppStore } from "@/stores/useAppStore";
 import { useGSAP } from "@/hooks/useGSAP";
@@ -16,7 +17,12 @@ import { useToast } from "@/hooks/use-toast";
 import { Upload, Wallet, Copy, ExternalLink, History } from "lucide-react";
 import AINEST_ABI from "@/utils/AINEST_ABI.json";
 import { AINEST_ADDRESS } from "@/utils/contracts";
-import { toU256, fromU256, decodeByteArray } from "@/utils/cairo";
+import {
+  toU256,
+  fromU256,
+  decodeByteArray,
+  parseUint256FromIntegerString,
+} from "@/utils/cairo";
 import { BlockTag } from "starknet";
 
 export const Profile = () => {
@@ -158,7 +164,8 @@ export const Profile = () => {
       contractDatasets.filter((d) => {
         if (
           d?.originalOwner === myAddr.toLowerCase().replace(/^0x0/, "0x") &&
-          d?.owner !== myAddr.toLowerCase().replace(/^0x0/, "0x")
+          d?.owner !== myAddr.toLowerCase().replace(/^0x0/, "0x") &&
+          d?.listed === false
         ) {
           return d;
         }
@@ -172,108 +179,152 @@ export const Profile = () => {
 
   // Fetch recent activity from contract events
   const [recentActivity, setRecentActivity] = useState<
-    { id: number; action: string; timestamp: string }[]
+    { id: number; action: string; timestamp: string; blockNumber?: number }[]
   >([]);
+  const [isLoadingActivity, setIsLoadingActivity] = useState(true);
 
-  const { data: transferredEvents, error: transferredError } = useEvents({
+  const {
+    data: transferredEvents,
+    error: transferredError,
+    refetch: refetchTransferred,
+  } = useEvents({
     address: AINEST_ADDRESS,
     eventName: "DatasetTransferred",
-    fromBlock: 0,
+    fromBlock: 1629872, // Transaction block (1629882) - 10
     toBlock: BlockTag.LATEST,
-    pageSize: 20,
-    retry: 3,
-    retryDelay: 1000,
+    pageSize: 50, // Increased page size
+    retry: 5,
+    retryDelay: 2000,
     enabled: true,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 
-  const { data: relistedEvents, error: relistedError } = useEvents({
+  const {
+    data: relistedEvents,
+    error: relistedError,
+    refetch: refetchRelisted,
+  } = useEvents({
     address: AINEST_ADDRESS,
     eventName: "DatasetRelisted",
-    fromBlock: 0,
+    fromBlock: 1629872,
     toBlock: BlockTag.LATEST,
-    pageSize: 20,
-    retry: 3,
-    retryDelay: 1000,
+    pageSize: 50,
+    retry: 5,
+    retryDelay: 2000,
     enabled: true,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
+
+  const { data: block } = useBlock({ refetchInterval: 10000 });
 
   // Update recent activity when events change
   useEffect(() => {
-    const activity: { id: number; action: string; timestamp: string }[] = [];
+    setIsLoadingActivity(true);
+    const activity: {
+      id: number;
+      action: string;
+      timestamp: string;
+      blockNumber?: number;
+    }[] = [];
+    console.log("Transferred Events Data:", transferredEvents);
+    console.log("Relisted Events Data:", relistedEvents);
+    console.log("Current Block:", block?.block_number);
 
-    if (transferredEvents) {
-      const pages = transferredEvents.pages as any[];
-      for (const [pageIndex, page] of pages.entries()) {
-        if (Array.isArray(page)) {
-          for (const [eventIndex, event] of page.entries()) {
-            const dataset_id = event.data[0];
-            const from = event.data[1];
-            const to = event.data[2];
+    if (transferredEvents?.pages) {
+      transferredEvents.pages.forEach((page, pageIndex) => {
+        const events = page.events || [];
+        events.forEach((event, eventIndex) => {
+          console.log("Event Data:", event);
+          const dataset_id = event.data?.[0];
+          const from = event.data?.[2];
+          const to = event.data?.[3];
+          const blockNumber = event.block_number;
+          const transactionHash = event.transaction_hash;
+          if (dataset_id && from && to) {
             activity.push({
-              id: pageIndex * 20 + eventIndex,
-              action: `Transferred dataset #${dataset_id} from ${from} to ${to}`,
-              timestamp: new Date().toISOString(), // Replace with block timestamp
+              id: pageIndex * 50 + eventIndex, // Adjusted for pageSize 50
+              action: `Transferred dataset #${Number(
+                dataset_id
+              )} from ${from} to ${to}. Transaction Hash: ${transactionHash}`,
+              timestamp: blockNumber
+                ? new Date().toISOString()
+                : new Date().toISOString(),
+              blockNumber,
             });
           }
-        } else if (page && page.data) {
-          // Handle case where page is a single event
-          const dataset_id = page.data[0];
-          const from = page.data[1];
-          const to = page.data[2];
-          activity.push({
-            id: pageIndex * 20,
-            action: `Transferred dataset #${Number(
-              dataset_id
-            )} from ${from} to ${to}`,
-            timestamp: new Date().toISOString(), // Replace with block timestamp
-          });
-        }
-      }
+        });
+      });
     }
 
-    if (relistedEvents) {
-      const pages = relistedEvents.pages as any[];
-      for (const [pageIndex, page] of pages.entries()) {
-        if (Array.isArray(page)) {
-          for (const [eventIndex, event] of page.entries()) {
-            const dataset_id = event.data[0];
-            const owner = event.data[1];
-            const price = event.data[2];
+    if (relistedEvents?.pages) {
+      relistedEvents.pages.forEach((page, pageIndex) => {
+        const events = page.events || [];
+        events.forEach((event, eventIndex) => {
+          const dataset_id = event.data?.[0];
+          const owner = event.data?.[1];
+          const price = event.data?.[2];
+          const blockNumber = event.block_number;
+          if (dataset_id && owner && price) {
             activity.push({
-              id: pageIndex * 20 + eventIndex,
-              action: `Relisted dataset #${Number(event.data[0])} by ${
-                event.data[1]
-              } for ${Number(event.data[2])}`,
-              timestamp: new Date().toISOString(), // Replace with block timestamp
+              id: pageIndex * 50 + eventIndex,
+              action: `Relisted dataset #${Number(
+                dataset_id
+              )} by ${owner} for ${Number(price)}`,
+              timestamp: blockNumber
+                ? new Date().toISOString()
+                : new Date().toISOString(),
+              blockNumber,
             });
           }
-        } else if (page && page.data) {
-          // Handle case where page is a single event
-          const dataset_id = page.data[0];
-          const owner = page.data[1];
-          const price = page.data[2];
-          activity.push({
-            id: pageIndex * 20,
-            action: `Relisted dataset #${Number(page.data[0])} by ${
-              page.data[1]
-            } for ${Number(event.data[2])}`,
-            timestamp: new Date().toISOString(), // Replace with block timestamp
-          });
-        }
-      }
+        });
+      });
     }
 
+    // Sort by blockNumber or timestamp (descending)
+    activity.sort((a, b) => (b.blockNumber || 0) - (a.blockNumber || 0));
+    console.log("Processed Activity:", activity);
     setRecentActivity(activity);
-  }, [transferredEvents, relistedEvents]);
+    setIsLoadingActivity(false);
+  }, [transferredEvents, relistedEvents, block]);
 
-  if (transferredError || relistedError) {
-    console.error(
-      "Failed to fetch activity:",
-      transferredError || relistedError
-    );
-  }
+  // Refetch events after a purchase
+  const handlePurchase = async (datasetId: string) => {
+    if (!contract) return;
+    try {
+      const call = {
+        contractAddress: AINEST_ADDRESS,
+        entrypoint: "purchase_dataset",
+        calldata: [BigInt(datasetId)],
+      };
+
+      if (!call) {
+        throw new Error("Failed to create contract call");
+      }
+
+      const tx = await send([call]);
+      toast({ title: "Purchasing dataset..." });
+
+      // Wait and refetch events
+      setTimeout(async () => {
+        await refetchTransferred();
+        await refetchRelisted();
+        load(); // Reload datasets
+        toast({ title: "Dataset purchased!" });
+      }, 10000);
+    } catch (err) {
+      console.error(err);
+      setTimeout(() => toast({ title: "Failed to purchase dataset" }), 5000);
+    }
+  };
+
+  // Manual refetch button
+  const handleManualRefetch = async () => {
+    setIsLoadingActivity(true);
+    await refetchTransferred();
+    await refetchRelisted();
+    setIsLoadingActivity(false);
+    toast({ title: "Refetched events!" });
+  };
 
   useEffect(() => {
     if (profileRef.current) animatePageEnter(profileRef.current);
@@ -290,11 +341,11 @@ export const Profile = () => {
     return `hsl(${hue}, 50%, 50%)`;
   };
 
-  const handleRelist = async (datasetId: string) => {
+  const handleRelist = async (datasetId: string, price: string) => {
     if (!contract) return;
     try {
-      const price = 1000000000000000000;
-      const newPrice = toU256(price); // 1 STRK in wei (adjust as needed)
+      // const price = 1000000000000000000;
+      const newPrice = parseUint256FromIntegerString(price);
 
       const call = {
         contractAddress: AINEST_ADDRESS,
@@ -313,12 +364,11 @@ export const Profile = () => {
 
       setTimeout(() => {
         toast({ title: "Dataset relisted!" });
-        load(); // Reload datasets after relisting
+        load();
       }, 5000);
     } catch (err) {
       console.error(err);
-
-      setTimeout(() => toast({ title: "failed to relist dataset" }), 5000);
+      setTimeout(() => toast({ title: "Failed to relist dataset" }), 5000);
     }
   };
 
@@ -414,6 +464,13 @@ export const Profile = () => {
               >
                 <Upload className="h-4 w-4" />
                 <span>Upload Dataset</span>
+              </Button>
+              <Button
+                onClick={handleManualRefetch}
+                className="ainest-btn-primary flex items-center space-x-2"
+              >
+                <History className="h-4 w-4" />
+                <span>Refresh Activity</span>
               </Button>
             </div>
           </div>
@@ -519,16 +576,26 @@ export const Profile = () => {
             <h2 className="text-2xl font-semibold text-foreground flex items-center gap-2">
               <History className="h-5 w-5" /> Recent Activity
             </h2>
-            <ul className="space-y-2">
-              {recentActivity.map((a) => (
-                <li key={a.id} className="flex justify-between border-b pb-2">
-                  <span>{a.action}</span>
-                  <span className="text-muted-foreground text-sm">
-                    {a.timestamp}
-                  </span>
-                </li>
-              ))}
-            </ul>
+            {isLoadingActivity ? (
+              <p>Loading activity...</p>
+            ) : transferredError || relistedError ? (
+              <p className="text-red-500">
+                Failed to load activity. Please try again later.
+              </p>
+            ) : recentActivity.length > 0 ? (
+              <ul className="space-y-2">
+                {recentActivity.map((a) => (
+                  <li key={a.id} className="flex justify-between border-b pb-2">
+                    <span>{a.action}</span>
+                    <span className="text-muted-foreground text-sm">
+                      {new Date(a.timestamp).toLocaleString()}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>No recent activity found.</p>
+            )}
           </section>
         )}
       </div>
