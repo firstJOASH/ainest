@@ -33,9 +33,33 @@ import {
 } from "@/utils/cairo";
 
 // Mock IPFS upload (simulated hash)
-async function mockUploadToIPFS(file: File) {
-  return "QmMockHash123456Tosin78w34Joashawer899uiu8"; // Static CID for testing
+// Generates a realistic-looking CIDv0 (starts with 'Qm' and 46 chars long)
+async function mockUploadToIPFS(file: File): Promise<string> {
+  // small artificial delay to simulate network/upload
+  await new Promise((res) => setTimeout(res, 700));
+  const base58 = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+  // CIDv0 is Qm + 44 base58 chars (total length 46)
+  let suffix = "";
+  for (let i = 0; i < 44; i++) {
+    suffix += base58[Math.floor(Math.random() * base58.length)];
+  }
+  return `Qm${suffix}`;
 }
+
+// Real IPFS upload function placeholder. When you integrate ipfs-http-client
+// replace this implementation. It must accept a File and return a CID string.
+async function realUploadToIPFS(file: File): Promise<string> {
+  // Placeholder: return mock until real implementation wired.
+  return mockUploadToIPFS(file);
+}
+
+const shouldUseMockIPFS =
+  process.env.NODE_ENV === "development" ||
+  process.env.REACT_APP_USE_MOCK_IPFS === "true";
+
+const uploadToIPFS = async (file: File) => {
+  return shouldUseMockIPFS ? mockUploadToIPFS(file) : realUploadToIPFS(file);
+};
 
 interface UploadDatasetModalProps {
   isOpen: boolean;
@@ -121,8 +145,8 @@ export const UploadDatasetModal = ({
     setIsUploading(true);
 
     try {
-      // 1) Mock IPFS
-      const ipfsHash = await mockUploadToIPFS(formData.file!);
+      // 1) Upload to IPFS (mock or real depending on env)
+      const ipfsHash = await uploadToIPFS(formData.file!);
       const ipfsHashFelt = ipfsHashToFelt252(ipfsHash);
 
       // 2) Encode ByteArrays as *structs*
@@ -151,9 +175,9 @@ export const UploadDatasetModal = ({
       setContractDatasets([...useAppStore.getState().contractDatasets]);
 
       setTimeout(() => {
-        toast({ title: "Dataset uploaded successfully!" });
         onClose();
       }, 5000);
+      toast({ title: "Dataset uploaded successfully!" });
 
       setFormData({
         name: "",
@@ -163,12 +187,16 @@ export const UploadDatasetModal = ({
         price: "",
         file: null,
       });
-    } catch (error: any) {
+    } catch (err) {
+      const error = err as unknown;
       console.error("Upload failed:", error);
+      const message =
+        (error && typeof error === "object" && "message" in error
+          ? (error as { message?: string }).message
+          : undefined) || "There was an error uploading your dataset";
       toast({
         title: "Upload failed",
-        description:
-          error?.message ?? "There was an error uploading your dataset",
+        description: message as string,
         variant: "destructive",
       });
     } finally {
