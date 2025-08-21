@@ -24,7 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Upload, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { DATASET_CATEGORIES } from "@/lib/starknet";
+import { DATASET_CATEGORIES, DATASET_FORMATS } from "@/lib/starknet";
 import { AINEST_ADDRESS } from "@/utils/contracts";
 import AINEST_ABI from "@/utils/AINEST_ABI.json";
 import {
@@ -34,8 +34,9 @@ import {
 
 // Mock IPFS upload (simulated hash)
 async function mockUploadToIPFS(file: File) {
-  return "QmMockHash12345678a90uchewer899uiuiu892tyty2"; // Static CID for testing
+  return "QmMockHash12345678awer899uiu8"; // Static CID for testing
 }
+
 interface UploadDatasetModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -52,6 +53,7 @@ export const UploadDatasetModal = ({
     name: "",
     description: "",
     category: "",
+    format: "", // Add format field
     price: "",
     file: null as File | null,
   });
@@ -107,6 +109,15 @@ export const UploadDatasetModal = ({
       return;
     }
 
+    if (!formData.format) {
+      toast({
+        title: "Invalid format",
+        description: "Please select a format",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsUploading(true);
 
     try {
@@ -119,9 +130,6 @@ export const UploadDatasetModal = ({
       const categoryBA = formData.category;
 
       // 3) Price as integer → u256
-      // 3) Convert STRK decimal input to wei (BigInt) → u256
-      // 1 STRK = 10^18 wei
-      // const priceWei = BigInt(Math.floor(Number(formData.price) * 1e18));
       const priceU256 = parseUint256FromIntegerString(formData.price);
 
       console.log("User input price (STRK):", formData.price);
@@ -134,16 +142,12 @@ export const UploadDatasetModal = ({
       });
 
       // 4) Build the call with the correct shapes
-      // Positional args assuming Cairo fn signature is:
-      // fn register_dataset(name: ByteArray, ipfs_hash: felt252, price: u256, category: ByteArray)
-
-      // Using positional arguments
-      const call = contract?.populate("register_dataset", [
-        formData.name, // name: ByteArray
-        ipfsHashFelt, // ipfs_hash: felt252
-        { low: priceU256.low, high: priceU256.high }, // price.high: u128
-        formData.category, // category: ByteArray
-      ]);
+      const call = contract?.populate("register_dataset", {
+        name: nameBA,
+        ipfs_hash: ipfsHashFelt,
+        price: { low: priceU256.low, high: priceU256.high },
+        category: categoryBA,
+      });
 
       if (!call) {
         throw new Error("Failed to create contract call");
@@ -183,6 +187,7 @@ export const UploadDatasetModal = ({
         name: "",
         description: "",
         category: "",
+        format: "",
         price: "",
         file: null,
       });
@@ -203,7 +208,15 @@ export const UploadDatasetModal = ({
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      setFormData((prev) => ({ ...prev, file }));
+      // Auto-detect format from file extension if format not selected
+      const extension = file.name.split('.').pop()?.toUpperCase();
+      const autoFormat = DATASET_FORMATS.find(f => f === extension) || formData.format;
+      
+      setFormData((prev) => ({ 
+        ...prev, 
+        file,
+        format: autoFormat
+      }));
     }
   };
 
@@ -253,6 +266,28 @@ export const UploadDatasetModal = ({
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="format">Format</Label>
+            <Select
+              value={formData.format}
+              onValueChange={(value) =>
+                setFormData((prev) => ({ ...prev, format: value }))
+              }
+              required
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select format" />
+              </SelectTrigger>
+              <SelectContent>
+                {DATASET_FORMATS.map((format) => (
+                  <SelectItem key={format} value={format}>
+                    {format}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="price">Price (STRK)</Label>
             <Input
               id="price"
@@ -278,8 +313,9 @@ export const UploadDatasetModal = ({
                   description: e.target.value,
                 }))
               }
-              placeholder="Describe your dataset..."
+              placeholder="Describe your dataset (features, use cases, data source, etc.)"
               rows={3}
+              required
             />
           </div>
 
@@ -289,13 +325,14 @@ export const UploadDatasetModal = ({
               id="file"
               type="file"
               onChange={handleFileChange}
-              accept=".csv,.json,.zip,.tar.gz"
+              accept=".csv,.json,.zip,.tar.gz,.xlsx,.pdf,.txt"
               required
             />
             {formData.file && (
-              <p className="text-sm text-muted-foreground">
-                Selected: {formData.file.name}
-              </p>
+              <div className="text-sm text-muted-foreground space-y-1">
+                <p>Selected: {formData.file.name}</p>
+                <p>Size: {(formData.file.size / 1024 / 1024).toFixed(2)} MB</p>
+              </div>
             )}
           </div>
 
