@@ -59,3 +59,31 @@ export const DATASET_CATEGORIES = [
 ] as const;
 
 export type DatasetCategory = (typeof DATASET_CATEGORIES)[number];
+// Update your lib/starknet.ts Dataset interface to include description and format
+export interface Dataset {
+  owner: string;
+  name: string;
+  // ipfs_hash: string;
+  price: bigint;
+  id: bigint;
+  category: string;
+  description?: string; // Add this field
+  format?: string; // Add this field (e.g., "CSV", "JSON", "ZIP")
+  size?: number; // Optional: file size in bytes
+  createdAt?: string; // Optional: timestamp
+  downloads?: number; // Optional: download count
+}
+
+// Add format options for the upload form
+export const DATASET_FORMATS = [
+  "CSV",
+  "JSON", 
+  "ZIP",
+  "TAR.GZ",
+  "XLSX",
+  "PDF",
+  "TXT",
+  "Other"
+] as const;
+
+export type DatasetFormat = (typeof DATASET_FORMATS)[number];
