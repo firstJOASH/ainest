@@ -32,6 +32,7 @@ import {
   parseUint256FromIntegerString,
 } from "@/utils/cairo";
 import { BlockTag } from "starknet";
+import { RelistModal } from "@/components/RelistModal";
 
 export const Profile = () => {
   const profileRef = useRef<HTMLDivElement>(null);
@@ -58,6 +59,10 @@ export const Profile = () => {
   const [activeTab, setActiveTab] = useState<
     "onSale" | "purchased" | "sold" | "activity"
   >("onSale");
+  const [isRelistOpen, setIsRelistOpen] = useState(false);
+  const [selectedDatasetId, setSelectedDatasetId] = useState<string | null>(
+    null
+  );
 
   const load = async () => {
     if (!contract) return;
@@ -344,34 +349,9 @@ export const Profile = () => {
     return `hsl(${hue}, 50%, 50%)`;
   };
 
-  const handleRelist = async (datasetId: string, price: string) => {
-    if (!contract) return;
-    try {
-      const newPrice = parseUint256FromIntegerString(price);
-
-      const call = {
-        contractAddress: AINEST_ADDRESS,
-        entrypoint: "list_for_sale",
-        calldata: [
-          BigInt(datasetId),
-          { low: newPrice.low, high: newPrice.high },
-        ],
-      };
-
-      if (!call) {
-        throw new Error("Failed to create contract call");
-      }
-
-      send([call]);
-
-      setTimeout(() => {
-        toast({ title: "Dataset relisted!" });
-        load();
-      }, 5000);
-    } catch (err) {
-      console.error(err);
-      setTimeout(() => toast({ title: "Failed to relist dataset" }), 5000);
-    }
+  const handleRelistClick = (datasetId: string) => {
+    setSelectedDatasetId(datasetId);
+    setIsRelistOpen(true);
   };
 
   if (!isConnected) {
@@ -560,15 +540,18 @@ export const Profile = () => {
                     />
                     <Button
                       size="sm"
-                      onClick={() =>
-                        handleRelist(
-                          dataset.id.toString(),
-                          "1000000000000000000"
-                        )
-                      }
+                      onClick={() => handleRelistClick(dataset.id.toString())}
                     >
                       Re-list
                     </Button>
+                    <RelistModal
+                      isOpen={isRelistOpen}
+                      onClose={() => {
+                        setIsRelistOpen(false);
+                        load();
+                      }}
+                      datasetId={selectedDatasetId || ""}
+                    />
                   </div>
                 ))}
               </div>

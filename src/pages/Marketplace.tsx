@@ -149,14 +149,8 @@ export const Marketplace = () => {
       const matchesSearch = dataset.name
         .toLowerCase()
         .includes(searchQuery.toLowerCase());
-      // Convert originalOwner to string if not already
-      const originalOwnerStr =
-        typeof dataset.originalOwner === "string"
-          ? dataset.originalOwner
-          : `0x${BigInt(dataset.originalOwner).toString(16)}`;
-      const isForSale =
-        dataset.owner.toLowerCase() === originalOwnerStr.toLowerCase() &&
-        dataset.listed === true;
+      // A dataset is for sale when it's marked listed === true.
+      const isForSale = dataset.listed === true;
       return matchesCategory && matchesSearch && isForSale;
     })
     .sort((a, b) => {

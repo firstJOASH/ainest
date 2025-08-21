@@ -146,15 +146,15 @@ export const UploadDatasetModal = ({
 
       // 5) Send
       send([call]);
+      toast({ title: "Uploading Dataset..." });
 
       setContractDatasets([...useAppStore.getState().contractDatasets]);
 
-      if (send) {
-        setTimeout(() => {
-          toast({ title: "Dataset uploaded successfully!" });
-        }, 5000);
-      }
-      onClose();
+      setTimeout(() => {
+        toast({ title: "Dataset uploaded successfully!" });
+        onClose();
+      }, 5000);
+
       setFormData({
         name: "",
         description: "",
