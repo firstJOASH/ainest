@@ -234,15 +234,11 @@ export const Profile = () => {
       timestamp: string;
       blockNumber?: number;
     }[] = [];
-    console.log("Transferred Events Data:", transferredEvents);
-    console.log("Relisted Events Data:", relistedEvents);
-    console.log("Current Block:", block?.block_number);
 
     if (transferredEvents?.pages) {
       transferredEvents.pages.forEach((page, pageIndex) => {
         const events = page.events || [];
         events.forEach((event, eventIndex) => {
-          console.log("Event Data:", event);
           const dataset_id = event.data?.[0];
           const from = event.data?.[2];
           const to = event.data?.[3];
@@ -290,7 +286,6 @@ export const Profile = () => {
 
     // Sort by blockNumber or timestamp (descending)
     activity.sort((a, b) => (b.blockNumber || 0) - (a.blockNumber || 0));
-    console.log("Processed Activity:", activity);
     setRecentActivity(activity);
     setIsLoadingActivity(false);
   }, [transferredEvents, relistedEvents, block]);
