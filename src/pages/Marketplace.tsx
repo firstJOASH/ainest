@@ -1,3 +1,4 @@
+// src/pages/Marketplace.tsx
 import { useRef, useEffect, useState } from "react";
 import { useAppStore } from "@/stores/useAppStore";
 import { useGSAP } from "@/hooks/useGSAP";
@@ -6,7 +7,7 @@ import { CategorySidebar } from "@/components/CategorySidebar";
 import { DatasetCard } from "@/components/DatasetCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, Grid, List } from "lucide-react";
+import { Search, Grid, List, ArrowLeft, Home } from "lucide-react"; // Added ArrowLeft and Home
 import { useAccount, useContract } from "@starknet-react/core";
 import AINEST_ABI from "@/utils/AINEST_ABI.json";
 import { AINEST_ADDRESS } from "@/utils/contracts";
@@ -168,6 +169,26 @@ export const Marketplace = () => {
       <CategorySidebar />
 
       <main ref={mainRef} className="flex-1 p-6">
+        {/* Navigation Buttons */}
+        <div className="mb-6 flex space-x-4">
+          <Button
+            variant="outline"
+            onClick={() => window.history.back()}
+            className="flex items-center space-x-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = "/")}
+            className="flex items-center space-x-2"
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </Button>
+        </div>
+
         {/* Header */}
         <div className="mb-8">
           <h1 className="ainest-section-title mb-4">Dataset Marketplace</h1>
@@ -256,7 +277,7 @@ export const Marketplace = () => {
                 dataset={dataset}
                 onView={() => {}}
                 onPurchase={async () => {
-                  await load(); // Now accessible
+                  await load();
                 }}
               />
             ))}

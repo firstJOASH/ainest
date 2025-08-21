@@ -14,7 +14,15 @@ import { DatasetCard } from "@/components/DatasetCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Upload, Wallet, Copy, ExternalLink, History } from "lucide-react";
+import {
+  Upload,
+  Wallet,
+  Copy,
+  ExternalLink,
+  History,
+  ArrowLeft,
+  Home,
+} from "lucide-react"; // Added ArrowLeft and Home
 import AINEST_ABI from "@/utils/AINEST_ABI.json";
 import { AINEST_ADDRESS } from "@/utils/contracts";
 import {
@@ -190,9 +198,9 @@ export const Profile = () => {
   } = useEvents({
     address: AINEST_ADDRESS,
     eventName: "DatasetTransferred",
-    fromBlock: 1629872, // Transaction block (1629882) - 10
+    fromBlock: 1629872,
     toBlock: BlockTag.LATEST,
-    pageSize: 50, // Increased page size
+    pageSize: 50,
     retry: 5,
     retryDelay: 2000,
     enabled: true,
@@ -242,7 +250,7 @@ export const Profile = () => {
           const transactionHash = event.transaction_hash;
           if (dataset_id && from && to) {
             activity.push({
-              id: pageIndex * 50 + eventIndex, // Adjusted for pageSize 50
+              id: pageIndex * 50 + eventIndex,
               action: `Transferred dataset #${Number(
                 dataset_id
               )} from ${from} to ${to}. Transaction Hash: ${transactionHash}`,
@@ -344,7 +352,6 @@ export const Profile = () => {
   const handleRelist = async (datasetId: string, price: string) => {
     if (!contract) return;
     try {
-      // const price = 1000000000000000000;
       const newPrice = parseUint256FromIntegerString(price);
 
       const call = {
@@ -391,6 +398,26 @@ export const Profile = () => {
   return (
     <div ref={profileRef} className="min-h-screen p-6">
       <div className="container mx-auto max-w-6xl space-y-8">
+        {/* Navigation Buttons */}
+        <div className="mb-6 flex space-x-4">
+          <Button
+            variant="outline"
+            onClick={() => window.history.back()}
+            className="flex items-center space-x-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back</span>
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => (window.location.href = "/")}
+            className="flex items-center space-x-2"
+          >
+            <Home className="h-4 w-4" />
+            <span>Home</span>
+          </Button>
+        </div>
+
         {/* Profile Header */}
         <div className="ainest-card">
           <div className="flex flex-col md:flex-row items-start md:items-center space-y-4 md:space-y-0 md:space-x-6">
@@ -538,7 +565,12 @@ export const Profile = () => {
                     />
                     <Button
                       size="sm"
-                      onClick={() => handleRelist(dataset.id.toString())}
+                      onClick={() =>
+                        handleRelist(
+                          dataset.id.toString(),
+                          "1000000000000000000"
+                        )
+                      }
                     >
                       Re-list
                     </Button>
