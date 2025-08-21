@@ -9,16 +9,16 @@ export const CONTRACT_ADDRESS =
   "0x02112566c584fdad21d338baf2b839d60b7f04149354293759692f8a31ee6e39";
 
 // Dataset interface matching Cairo contract
-export interface Dataset {
-  owner: string;
-  name: string;
-  ipfs_hash: string;
-  price: bigint;
-  id: bigint;
-  category: string;
-  originalOwner: string;
-  listed: boolean;
-}
+// export interface Dataset {
+//   owner: string;
+//   name: string;
+//   ipfs_hash: string;
+//   price: bigint;
+//   id: bigint;
+//   category: string;
+//   originalOwner: string;
+//   listed: boolean;
+// }
 
 export interface UserStats {
   uploads: number;
@@ -63,10 +63,12 @@ export type DatasetCategory = (typeof DATASET_CATEGORIES)[number];
 export interface Dataset {
   owner: string;
   name: string;
-  // ipfs_hash: string;
+  ipfs_hash: string;
   price: bigint;
   id: bigint;
   category: string;
+  originalOwner: string;
+  listed: boolean;
   description?: string; // Add this field
   format?: string; // Add this field (e.g., "CSV", "JSON", "ZIP")
   size?: number; // Optional: file size in bytes
@@ -77,13 +79,13 @@ export interface Dataset {
 // Add format options for the upload form
 export const DATASET_FORMATS = [
   "CSV",
-  "JSON", 
+  "JSON",
   "ZIP",
   "TAR.GZ",
   "XLSX",
   "PDF",
   "TXT",
-  "Other"
+  "Other",
 ] as const;
 
 export type DatasetFormat = (typeof DATASET_FORMATS)[number];

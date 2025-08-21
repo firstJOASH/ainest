@@ -34,7 +34,7 @@ import {
 
 // Mock IPFS upload (simulated hash)
 async function mockUploadToIPFS(file: File) {
-  return "QmMockHash12345678awer899uiu8"; // Static CID for testing
+  return "QmMockHash123456Tosin78w34Joashawer899uiu8"; // Static CID for testing
 }
 
 interface UploadDatasetModalProps {
@@ -132,15 +132,6 @@ export const UploadDatasetModal = ({
       // 3) Price as integer → u256
       const priceU256 = parseUint256FromIntegerString(formData.price);
 
-      console.log("User input price (STRK):", formData.price);
-
-      console.log("Calling with:", {
-        name: nameBA,
-        ipfs_hash: ipfsHashFelt,
-        price: priceU256,
-        category: categoryBA,
-      });
-
       // 4) Build the call with the correct shapes
       const call = contract?.populate("register_dataset", {
         name: nameBA,
@@ -153,29 +144,10 @@ export const UploadDatasetModal = ({
         throw new Error("Failed to create contract call");
       }
 
-      console.log("Contract call:", call);
       // 5) Send
       send([call]);
 
-      // Build new dataset object (mock since contract doesn't return directly)
-      const newDataset = {
-        id: BigInt(Date.now().toString()), // temporary unique ID
-        name: formData.name,
-        description: formData.description,
-        ipfs_hash: ipfsHashFelt,
-        price: BigInt(formData.price),
-        category: formData.category,
-        listed: true,
-        originalOwner: account.address,
-        owner: account.address,
-      };
-
-      // Push into Zustand store
-      addDataset(newDataset);
-      setContractDatasets([
-        newDataset,
-        ...useAppStore.getState().contractDatasets,
-      ]);
+      setContractDatasets([...useAppStore.getState().contractDatasets]);
 
       if (send) {
         setTimeout(() => {
@@ -209,13 +181,14 @@ export const UploadDatasetModal = ({
     const file = e.target.files?.[0];
     if (file) {
       // Auto-detect format from file extension if format not selected
-      const extension = file.name.split('.').pop()?.toUpperCase();
-      const autoFormat = DATASET_FORMATS.find(f => f === extension) || formData.format;
-      
-      setFormData((prev) => ({ 
-        ...prev, 
+      const extension = file.name.split(".").pop()?.toUpperCase();
+      const autoFormat =
+        DATASET_FORMATS.find((f) => f === extension) || formData.format;
+
+      setFormData((prev) => ({
+        ...prev,
         file,
-        format: autoFormat
+        format: autoFormat,
       }));
     }
   };

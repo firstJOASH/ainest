@@ -7,7 +7,14 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User, Download, ExternalLink, FileText, Database, DollarSign } from "lucide-react";
+import {
+  User,
+  Download,
+  ExternalLink,
+  FileText,
+  Database,
+  DollarSign,
+} from "lucide-react";
 
 interface DatasetPreviewModalProps {
   dataset: Dataset | null;
@@ -36,7 +43,6 @@ export const DatasetPreviewModal = ({
   };
 
   const formatFileSize = (bytes?: number) => {
-
     if (!bytes) return "Unknown";
     const mb = bytes / 1024 / 1024;
     if (mb < 1) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -47,8 +53,8 @@ export const DatasetPreviewModal = ({
   const getDescription = () => {
     // Type assertion to access description if it exists
     const datasetWithDesc = dataset as Dataset & { description?: string };
-    return datasetWithDesc.description && datasetWithDesc.description.trim() 
-      ? datasetWithDesc.description 
+    return datasetWithDesc.description && datasetWithDesc.description.trim()
+      ? datasetWithDesc.description
       : "No description provided by the dataset owner.";
   };
 
@@ -69,7 +75,9 @@ export const DatasetPreviewModal = ({
   "format": "${info.format}",
   "size": "${info.size}",
   "price": "${formatPrice(dataset.price)}",
-  "description": "${info.description.slice(0, 100)}${info.description.length > 100 ? '...' : ''}",
+  "description": "${info.description.slice(0, 100)}${
+      info.description.length > 100 ? "..." : ""
+    }",
   "owner": "${formatAddress(dataset.owner)}",
   "dataset_id": ${dataset.id.toString()}
 }`;

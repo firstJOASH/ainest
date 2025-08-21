@@ -99,6 +99,11 @@ export const DatasetCard = ({
             : decodeByteArray(rawNameData) || `Dataset #${id}`;
         const categoryStr = decodeByteArray(category) || "Uncategorized";
         const priceRaw = fromU256(priceU256);
+        const description = d?.description ?? d[7];
+        const format = d?.format ?? d[8];
+        const size = d?.size ?? d[9];
+        const createdAt = d?.createdAt ?? d[10];
+        const downloads = d?.downloads ?? d[11];
 
         results.push({
           id: BigInt(id),
@@ -112,6 +117,11 @@ export const DatasetCard = ({
           price: priceRaw,
           category: categoryStr as DatasetCategory,
           listed: isListed,
+          description: description,
+          format: format,
+          size: size,
+          createdAt: createdAt,
+          downloads: downloads,
         });
       } catch (e) {
         console.log(`get_dataset(${id}) failed`, e);
