@@ -36,6 +36,7 @@ const safeName = (id: number) => `Dataset #${id}`;
 export const Marketplace = () => {
   const mainRef = useRef<HTMLDivElement>(null);
   const gridRef = useRef<HTMLDivElement>(null);
+  const prevFilteredCount = useRef<number>(0);
   const { animatePageEnter, animateGridItems } = useGSAP();
 
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -166,8 +167,13 @@ export const Marketplace = () => {
   useEffect(() => {
     if (!gridRef.current) return;
     const cards = gridRef.current.querySelectorAll(".ainest-dataset-card");
-    if (cards.length > 0) animateGridItems(cards);
-  }, [filteredDatasets, selectedCategory, searchQuery, animateGridItems]);
+    const count = cards.length;
+
+    if (count > 0 && count !== prevFilteredCount.current) {
+      animateGridItems(cards);
+    }
+    prevFilteredCount.current = count;
+  }, [filteredDatasets, animateGridItems]);
 
   return (
     <div className="flex min-h-screen relative">
@@ -279,7 +285,7 @@ export const Marketplace = () => {
         </div>
 
         {/* Dataset Grid */}
-        {isLoading ? (
+        {contractDatasets.length === 0 && isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="ainest-card animate-pulse">
@@ -313,7 +319,8 @@ export const Marketplace = () => {
               />
             ))}
           </div>
-        ) : (
+        ) : !isLoading ? (
+          // Not loading and no results
           <div className="text-center py-12 md:py-20">
             <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
               <Search className="h-8 w-8 text-muted-foreground" />
@@ -327,6 +334,10 @@ export const Marketplace = () => {
             <Button onClick={() => setSearchQuery("")} variant="outline">
               Clear Filters
             </Button>
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-sm text-muted-foreground">Updating results…</p>
           </div>
         )}
       </main>

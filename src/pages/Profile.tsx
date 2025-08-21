@@ -45,6 +45,7 @@ export const Profile = () => {
     setLoading,
     setContractDatasets,
   } = useAppStore();
+  const loadInFlight = useRef(false);
   const { contract } = useContract({
     abi: AINEST_ABI as any,
     address: AINEST_ADDRESS,
@@ -192,7 +193,13 @@ export const Profile = () => {
 
   // Fetch recent activity from contract events
   const [recentActivity, setRecentActivity] = useState<
-    { id: number; action: string; timestamp: string; blockNumber?: number }[]
+    {
+      id: number;
+      description: string;
+      txHash?: string;
+      timestamp: string;
+      blockNumber?: number;
+    }[]
   >([]);
   const [isLoadingActivity, setIsLoadingActivity] = useState(true);
 
@@ -235,7 +242,8 @@ export const Profile = () => {
     setIsLoadingActivity(true);
     const activity: {
       id: number;
-      action: string;
+      description: string;
+      txHash?: string;
       timestamp: string;
       blockNumber?: number;
     }[] = [];
@@ -252,12 +260,11 @@ export const Profile = () => {
           if (dataset_id && from && to) {
             activity.push({
               id: pageIndex * 50 + eventIndex,
-              action: `Transferred dataset #${Number(
+              description: `Transferred dataset #${Number(
                 dataset_id
-              )} from ${from} to ${to}. Transaction Hash: ${transactionHash}`,
-              timestamp: blockNumber
-                ? new Date().toISOString()
-                : new Date().toISOString(),
+              )} from ${from} to ${to}.`,
+              txHash: transactionHash,
+              timestamp: new Date().toISOString(),
               blockNumber,
             });
           }
@@ -270,18 +277,19 @@ export const Profile = () => {
         const events = page.events || [];
         events.forEach((event, eventIndex) => {
           const dataset_id = event.data?.[0];
-          const owner = event.data?.[1];
-          const price = event.data?.[2];
+          const owner = event.data?.[2];
+          const price = event.data?.[3];
           const blockNumber = event.block_number;
+          const transactionHash = event.transaction_hash;
+
           if (dataset_id && owner && price) {
             activity.push({
               id: pageIndex * 50 + eventIndex,
-              action: `Relisted dataset #${Number(
+              description: `Relisted dataset #${Number(
                 dataset_id
-              )} by ${owner} for ${Number(price)}`,
-              timestamp: blockNumber
-                ? new Date().toISOString()
-                : new Date().toISOString(),
+              )} by ${owner} for ${(Number(price) / 1e18).toFixed(3)}.`,
+              txHash: transactionHash,
+              timestamp: new Date().toISOString(),
               blockNumber,
             });
           }
@@ -294,36 +302,6 @@ export const Profile = () => {
     setRecentActivity(activity);
     setIsLoadingActivity(false);
   }, [transferredEvents, relistedEvents, block]);
-
-  // Refetch events after a purchase
-  const handlePurchase = async (datasetId: string) => {
-    if (!contract) return;
-    try {
-      const call = {
-        contractAddress: AINEST_ADDRESS,
-        entrypoint: "purchase_dataset",
-        calldata: [BigInt(datasetId)],
-      };
-
-      if (!call) {
-        throw new Error("Failed to create contract call");
-      }
-
-      const tx = await send([call]);
-      toast({ title: "Purchasing dataset..." });
-
-      // Wait and refetch events
-      setTimeout(async () => {
-        await refetchTransferred();
-        await refetchRelisted();
-        load(); // Reload datasets
-        toast({ title: "Dataset purchased!" });
-      }, 10000);
-    } catch (err) {
-      console.error(err);
-      setTimeout(() => toast({ title: "Failed to purchase dataset" }), 5000);
-    }
-  };
 
   // Manual refetch button
   const handleManualRefetch = async () => {
@@ -513,7 +491,10 @@ export const Profile = () => {
             {myOnSale.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myOnSale.map((dataset) => (
-                  <div key={dataset.id.toString()} className="space-y-2">
+                  <div
+                    key={`sold-${dataset.id.toString()}`}
+                    className="space-y-2"
+                  >
                     <DatasetCard dataset={dataset} onView={() => {}} />
                   </div>
                 ))}
@@ -532,9 +513,12 @@ export const Profile = () => {
             {myPurchased.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {myPurchased.map((dataset) => (
-                  <div key={dataset.id.toString()} className="space-y-2">
+                  <div
+                    key={`purchased-${dataset.id.toString()}`}
+                    className="space-y-2"
+                  >
                     <DatasetCard
-                      key={dataset.id.toString()}
+                      // key={dataset.id.toString()}
                       dataset={dataset}
                       onView={() => {}}
                     />
@@ -569,7 +553,7 @@ export const Profile = () => {
                 {mySold.map((dataset) => (
                   <div key={dataset.id.toString()} className="space-y-2">
                     <DatasetCard
-                      key={dataset.id.toString()}
+                      // key={dataset.id.toString()}
                       dataset={dataset}
                     />
                   </div>
@@ -595,11 +579,18 @@ export const Profile = () => {
             ) : recentActivity.length > 0 ? (
               <ul className="space-y-2">
                 {recentActivity.map((a) => (
-                  <li key={a.id} className="flex justify-between border-b pb-2">
-                    <span>{a.action}</span>
-                    <span className="text-muted-foreground text-sm">
-                      {new Date(a.timestamp).toLocaleString()}
-                    </span>
+                  <li key={a.id} className="border-b pb-2">
+                    <div className="flex justify-between">
+                      <span>{a.description}</span>
+                      <span className="text-muted-foreground text-sm">
+                        {new Date(a.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                    {a.txHash && (
+                      <div className="text-xs text-muted-foreground mt-1 break-all">
+                        Tx: {a.txHash}
+                      </div>
+                    )}
                   </li>
                 ))}
               </ul>
