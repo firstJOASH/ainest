@@ -86,6 +86,9 @@ export const Profile = () => {
           const category = d.category ?? d[4];
           const originalOwner = d.originalOwner ?? d[5];
           const isListed = d.listed ?? d[6];
+          const description = d.description ?? d[7];
+          const format = d.format ?? d[8];
+          const size = d.size ?? d[9];
 
           const owner =
             typeof ownerRaw === "string"
@@ -114,6 +117,9 @@ export const Profile = () => {
             price: priceRaw,
             category: categoryStr as DatasetCategory,
             listed: isListed,
+            description: description,
+            format: format,
+            size: size,
           };
 
           results.push(datasetObj);
@@ -235,7 +241,42 @@ export const Profile = () => {
     refetchInterval: 60000,
   });
 
+  const {
+    data: listedEvents,
+    error: listedError,
+    refetch: refetchListed,
+  } = useEvents({
+    address: AINEST_ADDRESS,
+    eventName: "DatasetRegistered",
+    fromBlock: 1629872,
+    toBlock: BlockTag.LATEST,
+    pageSize: 50,
+    retry: 5,
+    retryDelay: 2000,
+    enabled: true,
+    refetchInterval: 60000,
+  });
+
   const { data: block } = useBlock({ refetchInterval: 10000 });
+
+  const getEventTimestamp = (event: any) => {
+    const cand =
+      event.block_timestamp ??
+      event.timestamp ??
+      event.time ??
+      event.block_time;
+    if (cand != null) {
+      const n = Number(cand);
+      if (!Number.isNaN(n)) {
+        return n > 1e12
+          ? new Date(n).toISOString()
+          : new Date(n * 1000).toISOString();
+      }
+      const parsed = Date.parse(String(cand));
+      if (!Number.isNaN(parsed)) return new Date(parsed).toISOString();
+    }
+    return new Date().toISOString();
+  };
 
   // Update recent activity when events change
   useEffect(() => {
@@ -297,17 +338,42 @@ export const Profile = () => {
       });
     }
 
+    if (listedEvents?.pages) {
+      listedEvents.pages.forEach((page, pageIndex) => {
+        const events = page.events || [];
+        events.forEach((event, eventIndex) => {
+          const dataset_id = event.data?.[0];
+          const lister = event.data?.[2];
+          const blockNumber = event.block_number;
+          const transactionHash = event.transaction_hash;
+
+          if (dataset_id && lister) {
+            activity.push({
+              id: pageIndex * 50 + eventIndex,
+              description: `Listed dataset #${Number(
+                dataset_id
+              )} by ${lister}.`,
+              txHash: transactionHash,
+              timestamp: getEventTimestamp(event),
+              blockNumber,
+            });
+          }
+        });
+      });
+    }
+
     // Sort by blockNumber or timestamp (descending)
     activity.sort((a, b) => (b.blockNumber || 0) - (a.blockNumber || 0));
     setRecentActivity(activity);
     setIsLoadingActivity(false);
-  }, [transferredEvents, relistedEvents, block]);
+  }, [transferredEvents, relistedEvents, listedEvents, block]);
 
   // Manual refetch button
   const handleManualRefetch = async () => {
     setIsLoadingActivity(true);
     await refetchTransferred();
     await refetchRelisted();
+    await refetchListed();
     setIsLoadingActivity(false);
     toast({ title: "Refetched events!" });
   };
@@ -572,7 +638,7 @@ export const Profile = () => {
             </h2>
             {isLoadingActivity ? (
               <p>Loading activity...</p>
-            ) : transferredError || relistedError ? (
+            ) : transferredError || relistedError || listedError ? (
               <p className="text-red-500">
                 Failed to load activity. Please try again later.
               </p>
@@ -582,9 +648,9 @@ export const Profile = () => {
                   <li key={a.id} className="border-b pb-2">
                     <div className="flex justify-between">
                       <span>{a.description}</span>
-                      <span className="text-muted-foreground text-sm">
+                      {/* <span className="text-muted-foreground text-sm">
                         {new Date(a.timestamp).toLocaleString()}
-                      </span>
+                      </span> */}
                     </div>
                     {a.txHash && (
                       <div className="text-xs text-muted-foreground mt-1 break-all">

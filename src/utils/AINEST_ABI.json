@@ -64,6 +64,18 @@
       {
         "name": "category",
         "type": "core::byte_array::ByteArray"
+      },
+      {
+        "name": "description",
+        "type": "core::byte_array::ByteArray"
+      },
+      {
+        "name": "format",
+        "type": "core::felt252"
+      },
+      {
+        "name": "size",
+        "type": "core::integer::u256"
       }
     ],
     "outputs": [
@@ -118,6 +130,26 @@
       {
         "name": "listed",
         "type": "core::bool"
+      },
+      {
+        "name": "description",
+        "type": "core::byte_array::ByteArray"
+      },
+      {
+        "name": "format",
+        "type": "core::felt252"
+      },
+      {
+        "name": "size",
+        "type": "core::integer::u256"
+      },
+      {
+        "name": "createdAt",
+        "type": "core::integer::u64"
+      },
+      {
+        "name": "downloads",
+        "type": "core::integer::u256"
       }
     ]
   },
@@ -230,6 +262,36 @@
       {
         "name": "category",
         "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "listed",
+        "type": "core::bool",
+        "kind": "data"
+      },
+      {
+        "name": "description",
+        "type": "core::byte_array::ByteArray",
+        "kind": "data"
+      },
+      {
+        "name": "format",
+        "type": "core::felt252",
+        "kind": "data"
+      },
+      {
+        "name": "size",
+        "type": "core::integer::u256",
+        "kind": "data"
+      },
+      {
+        "name": "createdAt",
+        "type": "core::integer::u64",
+        "kind": "data"
+      },
+      {
+        "name": "downloads",
+        "type": "core::integer::u256",
         "kind": "data"
       }
     ]

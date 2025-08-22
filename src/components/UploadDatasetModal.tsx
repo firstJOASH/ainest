@@ -80,6 +80,7 @@ export const UploadDatasetModal = ({
     format: "", // Add format field
     price: "",
     file: null as File | null,
+    size: "",
   });
 
   const { contract } = useContract({
@@ -156,12 +157,19 @@ export const UploadDatasetModal = ({
       // 3) Price as integer → u256
       const priceU256 = parseUint256FromIntegerString(formData.price);
 
+      const description = formData.description;
+      const format = formData.format;
+      const size = formData.size;
+
       // 4) Build the call with the correct shapes
       const call = contract?.populate("register_dataset", {
         name: nameBA,
         ipfs_hash: ipfsHashFelt,
         price: { low: priceU256.low, high: priceU256.high },
         category: categoryBA,
+        description: description,
+        format: format,
+        size: size,
       });
 
       if (!call) {
@@ -186,6 +194,7 @@ export const UploadDatasetModal = ({
         format: "",
         price: "",
         file: null,
+        size: "",
       });
     } catch (err) {
       const error = err as unknown;

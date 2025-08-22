@@ -15,6 +15,7 @@ import {
   Database,
   DollarSign,
 } from "lucide-react";
+import { toU256, fromU256 } from "@/utils/cairo";
 
 interface DatasetPreviewModalProps {
   dataset: Dataset | null;
@@ -228,7 +229,8 @@ export const DatasetPreviewModal = ({
           {/* Timestamp if available */}
           {dataset.createdAt && (
             <div className="text-xs text-muted-foreground">
-              Uploaded: {new Date(dataset.createdAt).toLocaleString()}
+              Uploaded:{" "}
+              {new Date(Number(dataset.createdAt) * 1000).toLocaleString()}
             </div>
           )}
 
